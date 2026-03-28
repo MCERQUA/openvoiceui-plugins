@@ -15,7 +15,7 @@ A plugin is a folder with a `plugin.json` manifest and the files it provides. Pl
 
 | Plugin | Type | Description | Author |
 |--------|------|-------------|--------|
-| *None yet — be the first!* | | | |
+| [BHB Animated Characters](bhb-animated-characters/) | face | Animated BigHead Billionaires character avatars with lip-sync, mood expressions, character builder, and show lore | bhaleyart |
 
 ## How to Submit a Plugin
 

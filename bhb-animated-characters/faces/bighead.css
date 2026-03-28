@@ -1,0 +1,18 @@
+/* BHB Animated Characters Plugin — BigHead face mode styles */
+.face-box.bighead-mode {
+    background: #0a0f1a;
+    padding: 0;
+    border-color: rgba(99,102,241,0.3);
+    box-shadow:
+        0 0 20px rgba(99,102,241,0.15),
+        0 0 40px rgba(99,102,241,0.08);
+    overflow: hidden;
+}
+.face-box.bighead-mode .eyes-container,
+.face-box.bighead-mode .mouth-container {
+    display: none !important;
+}
+.face-box.bighead-mode .visualizer-container,
+.face-box.bighead-mode .side-visualizer {
+    display: none !important;
+}
