@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Skills</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0f;--bg2:#12121a;--bg3:#1a1a25;--border:#2a2a3a;--dim:#888;--bright:#e8e8f0;--blue:#3b82f6;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--cyan:#06b6d4}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--bright);min-height:100vh;padding:16px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px}
+.header h1{font-size:20px;font-weight:600}
+.status-badge{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.status-running{background:rgba(34,197,94,0.15);color:var(--green)}
+.status-stopped{background:rgba(239,68,68,0.15);color:var(--red)}
+.status-checking{background:rgba(234,179,8,0.15);color:var(--yellow)}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto}
+.tab{padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;color:var(--dim);font-size:13px;white-space:nowrap;transition:all 0.15s}
+.tab:hover{color:var(--bright)}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.panel{display:none}
+.panel.active{display:block}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+.card-title{font-weight:600;font-size:14px;margin-bottom:4px}
+.card-sub{font-size:12px;color:var(--dim)}
+.card-meta{display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--dim)}
+.card-meta span{display:flex;align-items:center;gap:4px}
+.empty{text-align:center;padding:40px;color:var(--dim);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.search-box{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--bright);font-size:14px;margin-bottom:16px;outline:none}
+.search-box:focus{border-color:var(--blue)}
+.search-box::placeholder{color:var(--dim)}
+.btn{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all 0.15s}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-blue:hover{filter:brightness(1.1)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.stat-value{font-size:24px;font-weight:700;color:var(--blue)}
+.stat-label{font-size:11px;color:var(--dim);margin-top:4px}
+.task-status{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.task-running{background:rgba(59,130,246,0.15);color:var(--blue)}
+.task-completed{background:rgba(34,197,94,0.15);color:var(--green)}
+.task-failed{background:rgba(239,68,68,0.15);color:var(--red)}
+.schedule-item{display:flex;justify-content:space-between;align-items:center}
+.mode-selector{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.mode-btn{padding:10px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--dim);transition:all 0.15s}
+.mode-btn:hover{border-color:var(--blue);color:var(--bright)}
+.mode-btn.active{border-color:var(--blue);color:var(--blue);background:rgba(59,130,246,0.08)}
+.mode-desc{font-size:11px;color:var(--dim);margin-top:4px}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--dim);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:12px}
+.refresh-btn:hover{border-color:var(--blue);color:var(--bright)}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}.header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Agent Skills</h1>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button class="refresh-btn" onclick="refreshAll()">Refresh</button>
+    <span id="status-badge" class="status-badge status-checking">Checking...</span>
+  </div>
+</div>
+
+<div id="stats-row" class="stats-row">
+  <div class="stat"><div class="stat-value" id="stat-skills">-</div><div class="stat-label">Learned Skills</div></div>
+  <div class="stat"><div class="stat-value" id="stat-memory">-</div><div class="stat-label">Memory Entries</div></div>
+  <div class="stat"><div class="stat-value" id="stat-tasks">-</div><div class="stat-label">Tasks Run</div></div>
+  <div class="stat"><div class="stat-value" id="stat-uptime">-</div><div class="stat-label">Uptime</div></div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('skills')">Skills</div>
+  <div class="tab" onclick="showTab('memory')">Memory</div>
+  <div class="tab" onclick="showTab('tasks')">Tasks</div>
+  <div class="tab" onclick="showTab('schedule')">Schedule</div>
+  <div class="tab" onclick="showTab('mode')">Framework</div>
+</div>
+
+<!-- Skills Panel -->
+<div class="panel active" id="panel-skills">
+  <div id="skills-list" class="grid"><div class="empty">Loading skills...</div></div>
+</div>
+
+<!-- Memory Panel -->
+<div class="panel" id="panel-memory">
+  <input type="text" class="search-box" id="memory-search" placeholder="Search all past sessions..." onkeydown="if(event.key==='Enter')searchMemory()">
+  <div id="memory-results"><div class="empty">Search your agent's memory across all conversations</div></div>
+</div>
+
+<!-- Tasks Panel -->
+<div class="panel" id="panel-tasks">
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <input type="text" class="search-box" id="task-input" placeholder="Describe an autonomous task..." style="margin-bottom:0;flex:1">
+    <button class="btn btn-blue" onclick="createTask()">Run</button>
+  </div>
+  <div id="tasks-list"><div class="empty">No tasks yet</div></div>
+</div>
+
+<!-- Schedule Panel -->
+<div class="panel" id="panel-schedule">
+  <div style="display:flex;gap:8px;margin-bottom:16px">
+    <input type="text" class="search-box" id="schedule-input" placeholder="e.g. Check website rankings every Monday at 9am" style="margin-bottom:0;flex:1">
+    <button class="btn btn-blue" onclick="createSchedule()">Schedule</button>
+  </div>
+  <div id="schedule-list"><div class="empty">No scheduled tasks</div></div>
+</div>
+
+<!-- Framework Mode Panel -->
+<div class="panel" id="panel-mode">
+  <p style="font-size:13px;color:var(--dim);margin-bottom:16px">Choose which agent framework handles your conversations. All modes support full voice.</p>
+  <div class="mode-selector" id="mode-selector">
+    <div class="mode-btn" data-mode="openclaw" onclick="setMode('openclaw')">
+      <div>OpenClaw Only</div>
+      <div class="mode-desc">Current default. Real-time voice with tuned WebSocket pipeline.</div>
+    </div>
+    <div class="mode-btn" data-mode="openclaw+hermes" onclick="setMode('openclaw+hermes')">
+      <div>OpenClaw + Hermes</div>
+      <div class="mode-desc">Voice via OpenClaw, long tasks delegated to Hermes. Self-improving skills.</div>
+    </div>
+    <div class="mode-btn" data-mode="hermes" onclick="setMode('hermes')">
+      <div>Hermes Only</div>
+      <div class="mode-desc">Lightweight. Self-improving skills and deep memory. Full voice via REST.</div>
+    </div>
+  </div>
+  <div id="mode-status" style="font-size:12px;color:var(--dim)"></div>
+</div>
+
+<script>
+const esc=s=>(s+'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`.tab[onclick*="${name}"]`).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+async function checkStatus(){
+  const badge=document.getElementById('status-badge');
+  try{
+    const r=await fetch('/api/hermes/status');
+    const d=await r.json();
+    if(d.status==='running'){
+      badge.className='status-badge status-running';
+      badge.textContent='Running';
+      if(d.skills_count!=null)document.getElementById('stat-skills').textContent=d.skills_count;
+      if(d.memory_entries!=null)document.getElementById('stat-memory').textContent=d.memory_entries;
+      if(d.uptime)document.getElementById('stat-uptime').textContent=formatUptime(d.uptime);
+    }else{
+      badge.className='status-badge status-stopped';
+      badge.textContent=d.status==='stopped'?'Stopped':'Unhealthy';
+    }
+  }catch(e){
+    badge.className='status-badge status-stopped';
+    badge.textContent='Offline';
+  }
+}
+
+function formatUptime(seconds){
+  if(!seconds)return '-';
+  const h=Math.floor(seconds/3600);
+  const m=Math.floor((seconds%3600)/60);
+  return h>0?h+'h '+m+'m':m+'m';
+}
+
+async function loadSkills(){
+  const el=document.getElementById('skills-list');
+  try{
+    const r=await fetch('/api/hermes/skills');
+    const d=await r.json();
+    const skills=d.skills||[];
+    if(!skills.length){
+      el.innerHTML='<div class="empty">No learned skills yet. The agent will create skills automatically as it completes tasks.</div>';
+      return;
+    }
+    document.getElementById('stat-skills').textContent=skills.length;
+    el.innerHTML=skills.map(s=>
+      '<div class="card">'+
+        '<div class="card-title">'+esc(s.name||s.id)+'</div>'+
+        '<div class="card-sub">'+esc(s.description||'')+'</div>'+
+        '<div class="card-meta">'+
+          (s.success_rate!=null?'<span>'+Math.round(s.success_rate*100)+'% success</span>':'')+
+          (s.uses!=null?'<span>'+s.uses+' uses</span>':'')+
+          (s.last_used?'<span>Last: '+esc(s.last_used)+'</span>':'')+
+        '</div>'+
+      '</div>'
+    ).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty">Cannot connect to Hermes Agent</div>';
+  }
+}
+
+async function searchMemory(){
+  const query=document.getElementById('memory-search').value.trim();
+  if(!query)return;
+  const el=document.getElementById('memory-results');
+  el.innerHTML='<div class="empty">Searching...</div>';
+  try{
+    const r=await fetch('/api/hermes/memory/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query})});
+    const d=await r.json();
+    const results=d.results||[];
+    if(!results.length){
+      el.innerHTML='<div class="empty">No results for "'+esc(query)+'"</div>';
+      return;
+    }
+    el.innerHTML=results.map(r=>
+      '<div class="card">'+
+        '<div class="card-sub" style="color:var(--cyan);margin-bottom:4px">'+esc(r.session_id||r.date||'')+'</div>'+
+        '<div style="font-size:13px">'+esc(r.content||r.text||'')+'</div>'+
+        (r.score?'<div class="card-meta"><span>Relevance: '+Math.round(r.score*100)+'%</span></div>':'')+
+      '</div>'
+    ).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty">Search failed: '+esc(e.message)+'</div>';
+  }
+}
+
+async function loadTasks(){
+  const el=document.getElementById('tasks-list');
+  try{
+    const r=await fetch('/api/hermes/tasks');
+    const d=await r.json();
+    const tasks=d.tasks||[];
+    if(!tasks.length){
+      el.innerHTML='<div class="empty">No tasks. Describe a task above and click Run to delegate it to Hermes.</div>';
+      return;
+    }
+    document.getElementById('stat-tasks').textContent=tasks.length;
+    el.innerHTML=tasks.map(t=>
+      '<div class="card">'+
+        '<div style="display:flex;justify-content:space-between;align-items:center">'+
+          '<div class="card-title">'+esc(t.description||t.task||t.id)+'</div>'+
+          '<span class="task-status task-'+esc(t.status||'running')+'">'+esc(t.status||'running')+'</span>'+
+        '</div>'+
+        (t.result?'<div class="card-sub" style="margin-top:6px">'+esc(t.result.substring(0,200))+'</div>':'')+
+        '<div class="card-meta">'+
+          (t.created?'<span>Started: '+esc(t.created)+'</span>':'')+
+          (t.duration?'<span>Duration: '+esc(t.duration)+'</span>':'')+
+        '</div>'+
+      '</div>'
+    ).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty">Cannot load tasks</div>';
+  }
+}
+
+async function createTask(){
+  const input=document.getElementById('task-input');
+  const task=input.value.trim();
+  if(!task)return;
+  try{
+    const r=await fetch('/api/hermes/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({task})});
+    if(r.ok){input.value='';loadTasks();}
+  }catch(e){}
+}
+
+async function loadSchedule(){
+  const el=document.getElementById('schedule-list');
+  try{
+    const r=await fetch('/api/hermes/schedule');
+    const d=await r.json();
+    const items=d.schedules||[];
+    if(!items.length){
+      el.innerHTML='<div class="empty">No scheduled tasks. Describe a recurring task above.</div>';
+      return;
+    }
+    el.innerHTML=items.map(s=>
+      '<div class="card schedule-item">'+
+        '<div>'+
+          '<div class="card-title">'+esc(s.description||s.name)+'</div>'+
+          '<div class="card-sub">'+esc(s.schedule||s.cron||'')+'</div>'+
+        '</div>'+
+        '<div class="card-meta">'+
+          (s.next_run?'<span>Next: '+esc(s.next_run)+'</span>':'')+
+          (s.last_result?'<span>Last: '+esc(s.last_result)+'</span>':'')+
+        '</div>'+
+      '</div>'
+    ).join('');
+  }catch(e){
+    el.innerHTML='<div class="empty">Cannot load schedules</div>';
+  }
+}
+
+async function createSchedule(){
+  const input=document.getElementById('schedule-input');
+  const desc=input.value.trim();
+  if(!desc)return;
+  try{
+    const r=await fetch('/api/hermes/schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:desc})});
+    if(r.ok){input.value='';loadSchedule();}
+  }catch(e){}
+}
+
+async function loadMode(){
+  try{
+    const r=await fetch('/api/hermes/mode');
+    const d=await r.json();
+    const mode=d.mode||'openclaw';
+    document.querySelectorAll('.mode-btn').forEach(b=>{
+      b.classList.toggle('active',b.dataset.mode===mode);
+    });
+  }catch(e){}
+}
+
+async function setMode(mode){
+  try{
+    const r=await fetch('/api/hermes/mode',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+    const d=await r.json();
+    document.getElementById('mode-status').textContent=d.ok?'Mode set to '+mode+'. Restart container to apply.':'Error: '+(d.error||'failed');
+    document.querySelectorAll('.mode-btn').forEach(b=>{
+      b.classList.toggle('active',b.dataset.mode===mode);
+    });
+  }catch(e){
+    document.getElementById('mode-status').textContent='Error: '+e.message;
+  }
+}
+
+function refreshAll(){
+  checkStatus();
+  loadSkills();
+  loadTasks();
+  loadSchedule();
+  loadMode();
+}
+
+// Init
+refreshAll();
+</script>
+</body>
+</html>

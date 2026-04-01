@@ -10,12 +10,17 @@ A plugin is a folder with a `plugin.json` manifest and the files it provides. Pl
 - **Canvas pages** — interactive HTML tools (character builders, dashboards, games)
 - **API routes** — backend endpoints for plugin-specific data
 - **Example profiles** — pre-configured agent personalities that use the plugin
+- **Gateways** — alternative LLM backends (connect to different AI providers)
+- **OpenClaw extensions** — plugins that add capabilities to the OpenClaw agent (memory, tools, context engines)
 
 ## Available Plugins
 
 | Plugin | Type | Description | Author |
 |--------|------|-------------|--------|
 | [BHB Animated Characters](bhb-animated-characters/) | face | Animated BigHead Billionaires character avatars with lip-sync, mood expressions, character builder, and show lore | bhaleyart |
+| [ByteRover Long-Term Memory](byterover-memory/) | openclaw-extension | Persistent long-term memory via ByteRover context engine. Curates knowledge every turn into a markdown knowledge base | OpenVoiceUI |
+| [Hermes Agent](hermes-agent/) | gateway | Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks | Nous Research / JamBot |
+| [Example Gateway](example-gateway/) | gateway | Reference echo gateway implementation. Use as a template for custom LLM backends | OpenVoiceUI |
 
 ## How to Submit a Plugin
 

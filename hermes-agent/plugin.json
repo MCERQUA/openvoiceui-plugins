@@ -1,0 +1,37 @@
+{
+  "id": "hermes-agent",
+  "name": "Hermes Agent",
+  "version": "1.0.0",
+  "description": "Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks. Adds two new agent modes: OpenClaw+Hermes (hybrid) and Hermes-only (standalone).",
+  "author": "Nous Research / JamBot",
+  "type": "gateway",
+  "license": "MIT",
+  "requires": "openvoiceui >= 1.0",
+  "repository": "https://github.com/MCERQUA/openvoiceui-plugins",
+  "provides": "gateway",
+  "gateway_class": "HermesGateway",
+  "requires_env": [],
+  "lifecycle": {
+    "post_install": {
+      "provision": "hermes",
+      "requires_container": true
+    },
+    "pre_uninstall": {
+      "deprovision": "hermes"
+    }
+  },
+  "pages": [
+    {
+      "file": "pages/hermes.html",
+      "name": "Agent Skills",
+      "icon": "brain"
+    }
+  ],
+  "routes": [
+    {
+      "module": "routes/hermes.py",
+      "blueprint": "hermes_bp",
+      "prefix": "/api/hermes"
+    }
+  ]
+}
