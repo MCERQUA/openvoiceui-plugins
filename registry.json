@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "repo": "MCERQUA/openvoiceui-plugins",
+  "plugins": [
+    {
+      "id": "bhb-animated-characters",
+      "name": "BHB Animated Characters",
+      "version": "1.0.0",
+      "description": "Animated BigHead Billionaires character avatars with lip-sync, mood expressions, character builder, and show lore",
+      "type": "face",
+      "author": "bhaleyart"
+    },
+    {
+      "id": "byterover-memory",
+      "name": "ByteRover Long-Term Memory",
+      "version": "1.0.0",
+      "description": "Persistent long-term memory via ByteRover context engine. Curates conversation knowledge every turn into a human-readable markdown knowledge base.",
+      "type": "openclaw-extension",
+      "author": "OpenVoiceUI"
+    },
+    {
+      "id": "hermes-agent",
+      "name": "Hermes Agent",
+      "version": "1.0.0",
+      "description": "Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks. Adds two new agent modes.",
+      "type": "gateway",
+      "author": "Nous Research / JamBot"
+    },
+    {
+      "id": "twenty-crm",
+      "name": "Twenty CRM",
+      "version": "1.0.0",
+      "description": "Connect to a Twenty CRM instance for contact, company, deal, and task management. Includes an embedded CRM view and guided setup wizard.",
+      "type": "page",
+      "author": "jambot"
+    }
+  ]
+}
