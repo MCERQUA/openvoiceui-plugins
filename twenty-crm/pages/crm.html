@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CRM</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-dim: #64748b;
+  --success: #22c55e;
+  --error: #ef4444;
+  --header-h: 44px;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Header bar */
+.crm-header {
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.crm-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.crm-header-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.crm-header-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+.crm-header-url {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crm-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-dim);
+}
+
+.crm-status-dot.connected { background: var(--success); }
+.crm-status-dot.error { background: var(--error); }
+
+.crm-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.crm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.crm-btn:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.crm-btn:active {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.crm-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .crm-btn-text { display: none; }
+  .crm-btn { padding: 0 8px; }
+}
+
+/* Main content area */
+.crm-body {
+  position: relative;
+  width: 100%;
+  height: calc(100% - var(--header-h));
+  overflow: hidden;
+}
+
+.crm-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: var(--bg);
+}
+
+/* Loading overlay */
+.crm-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 10;
+  gap: 16px;
+  transition: opacity 0.3s;
+}
+
+.crm-loading.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.crm-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: crm-spin 0.8s linear infinite;
+}
+
+@keyframes crm-spin {
+  to { transform: rotate(360deg); }
+}
+
+.crm-loading-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Not-configured state */
+.crm-unconfigured {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 10;
+  padding: 24px;
+  text-align: center;
+  gap: 16px;
+}
+
+.crm-unconfigured.visible {
+  display: flex;
+}
+
+.crm-unconfigured-icon {
+  width: 56px;
+  height: 56px;
+  color: var(--text-dim);
+}
+
+.crm-unconfigured-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.crm-unconfigured-msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.crm-setup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.crm-setup-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Error state */
+.crm-error {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  z-index: 10;
+  padding: 24px;
+  text-align: center;
+  gap: 12px;
+}
+
+.crm-error.visible {
+  display: flex;
+}
+
+.crm-error-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-dim);
+}
+
+.crm-error-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.crm-error-msg {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+.crm-retry-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 24px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.crm-retry-btn:hover { background: var(--accent-hover); }
+.crm-retry-btn:active { background: #1d4ed8; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="crm-header">
+  <div class="crm-header-left">
+    <svg class="crm-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+    <span class="crm-header-title">CRM</span>
+    <span class="crm-status-dot" id="statusDot" title="Checking..."></span>
+    <span class="crm-header-url" id="headerUrl"></span>
+  </div>
+  <div class="crm-header-right">
+    <button class="crm-btn" id="settingsBtn" title="CRM Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span class="crm-btn-text">Settings</span>
+    </button>
+    <button class="crm-btn" id="refreshBtn" title="Reload CRM">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      <span class="crm-btn-text">Reload</span>
+    </button>
+    <button class="crm-btn" id="openBtn" title="Open in new tab">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      <span class="crm-btn-text">Open</span>
+    </button>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="crm-body">
+  <!-- Loading -->
+  <div class="crm-loading" id="loadingOverlay">
+    <div class="crm-spinner"></div>
+    <div class="crm-loading-text">Loading CRM...</div>
+  </div>
+
+  <!-- Not configured -->
+  <div class="crm-unconfigured" id="unconfiguredOverlay">
+    <svg class="crm-unconfigured-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+      <line x1="8" y1="21" x2="16" y2="21"/>
+      <line x1="12" y1="17" x2="12" y2="21"/>
+    </svg>
+    <div class="crm-unconfigured-title">CRM Not Connected</div>
+    <div class="crm-unconfigured-msg">
+      Your CRM workspace hasn't been set up yet. Run the setup wizard to connect to your Twenty CRM instance.
+    </div>
+    <button class="crm-setup-btn" id="setupBtn">Open Setup</button>
+  </div>
+
+  <!-- Error -->
+  <div class="crm-error" id="errorOverlay">
+    <svg class="crm-error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="12" y1="8" x2="12" y2="12"/>
+      <line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <div class="crm-error-title">CRM Unavailable</div>
+    <div class="crm-error-msg" id="errorMsg">Could not connect to the CRM.</div>
+    <button class="crm-retry-btn" id="retryBtn">Try Again</button>
+  </div>
+
+  <!-- CRM iframe -->
+  <iframe class="crm-iframe" id="crmFrame" allow="clipboard-read; clipboard-write"></iframe>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var LOAD_TIMEOUT_MS = 30000;
+  var loadTimer = null;
+
+  var frame = document.getElementById('crmFrame');
+  var loadingOverlay = document.getElementById('loadingOverlay');
+  var unconfiguredOverlay = document.getElementById('unconfiguredOverlay');
+  var errorOverlay = document.getElementById('errorOverlay');
+  var errorMsg = document.getElementById('errorMsg');
+  var headerUrl = document.getElementById('headerUrl');
+  var statusDot = document.getElementById('statusDot');
+  var settingsBtn = document.getElementById('settingsBtn');
+  var refreshBtn = document.getElementById('refreshBtn');
+  var openBtn = document.getElementById('openBtn');
+  var retryBtn = document.getElementById('retryBtn');
+  var setupBtn = document.getElementById('setupBtn');
+
+  var currentIframeUrl = '';
+
+  function showLoading() {
+    loadingOverlay.classList.remove('hidden');
+    unconfiguredOverlay.classList.remove('visible');
+    errorOverlay.classList.remove('visible');
+  }
+
+  function hideLoading() {
+    loadingOverlay.classList.add('hidden');
+  }
+
+  function showUnconfigured() {
+    hideLoading();
+    errorOverlay.classList.remove('visible');
+    unconfiguredOverlay.classList.add('visible');
+    statusDot.className = 'crm-status-dot';
+    statusDot.title = 'Not configured';
+    headerUrl.textContent = '';
+  }
+
+  function showError(msg) {
+    if (loadTimer) { clearTimeout(loadTimer); loadTimer = null; }
+    hideLoading();
+    unconfiguredOverlay.classList.remove('visible');
+    errorMsg.textContent = msg || 'Could not connect to the CRM.';
+    errorOverlay.classList.add('visible');
+    statusDot.className = 'crm-status-dot error';
+    statusDot.title = 'Connection error';
+  }
+
+  function hideOverlays() {
+    hideLoading();
+    unconfiguredOverlay.classList.remove('visible');
+    errorOverlay.classList.remove('visible');
+  }
+
+  function setConnected(url) {
+    statusDot.className = 'crm-status-dot connected';
+    statusDot.title = 'Connected';
+    // Show just the hostname
+    try {
+      var u = new URL(url);
+      headerUrl.textContent = u.hostname;
+    } catch (e) {
+      headerUrl.textContent = url;
+    }
+  }
+
+  function navigateToSetup() {
+    // Navigate to CRM Setup page within the canvas
+    // Try the OVU canvas navigation API
+    try {
+      if (window.parent && window.parent.postMessage) {
+        window.parent.postMessage({ type: 'navigate-page', pageId: 'crm-setup' }, '*');
+      }
+    } catch (e) {}
+    // Fallback: direct navigation
+    window.location.href = '/pages/crm-setup.html';
+  }
+
+  function loadCrm(iframeUrl) {
+    currentIframeUrl = iframeUrl;
+    showLoading();
+
+    if (loadTimer) clearTimeout(loadTimer);
+    loadTimer = setTimeout(function() {
+      hideLoading();
+    }, LOAD_TIMEOUT_MS);
+
+    frame.src = iframeUrl;
+    setConnected(iframeUrl);
+
+    openBtn.onclick = function() {
+      window.open(iframeUrl, '_blank');
+    };
+  }
+
+  frame.addEventListener('load', function() {
+    if (loadTimer) { clearTimeout(loadTimer); loadTimer = null; }
+    hideOverlays();
+  });
+
+  frame.addEventListener('error', function() {
+    showError('Failed to load the CRM. The service may be offline.');
+  });
+
+  refreshBtn.addEventListener('click', function() {
+    if (currentIframeUrl) {
+      loadCrm(currentIframeUrl);
+    } else {
+      init();
+    }
+  });
+
+  retryBtn.addEventListener('click', function() {
+    init();
+  });
+
+  setupBtn.addEventListener('click', navigateToSetup);
+  settingsBtn.addEventListener('click', navigateToSetup);
+
+  function init() {
+    showLoading();
+
+    // Fetch CRM config from the server
+    fetch('/api/crm/iframe-url')
+      .then(function(resp) {
+        if (!resp.ok) {
+          return resp.json().then(function(data) {
+            throw new Error(data.error || 'Not configured');
+          });
+        }
+        return resp.json();
+      })
+      .then(function(data) {
+        if (!data.url) {
+          showUnconfigured();
+          return;
+        }
+        loadCrm(data.url);
+      })
+      .catch(function(err) {
+        if (err.message === 'Not configured' || err.message === 'CRM not configured') {
+          showUnconfigured();
+        } else {
+          showError('Failed to load CRM configuration: ' + err.message);
+        }
+      });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

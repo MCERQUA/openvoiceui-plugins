@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>CRM Setup</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-raised: #283548;
+  --border: #334155;
+  --border-focus: #3b82f6;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-dim: rgba(59, 130, 246, 0.12);
+  --text: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-dim: #64748b;
+  --success: #22c55e;
+  --success-bg: rgba(34, 197, 94, 0.1);
+  --error: #ef4444;
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+  --header-h: 44px;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.header-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
+.header-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.header-back:hover {
+  background: var(--accent-dim);
+  color: var(--text);
+}
+
+.header-back svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Container */
+.container {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+/* Steps indicator */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.step-dot.active {
+  background: var(--accent);
+  transform: scale(1.2);
+}
+
+.step-dot.done {
+  background: var(--success);
+}
+
+.step-line {
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.step-line.done {
+  background: var(--success);
+}
+
+/* Step panels */
+.step-panel {
+  display: none;
+  animation: fadeIn 0.2s ease;
+}
+
+.step-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-heading {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.step-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+/* Form elements */
+.field {
+  margin-bottom: 16px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field-input:focus {
+  border-color: var(--border-focus);
+}
+
+.field-input::placeholder {
+  color: var(--text-dim);
+}
+
+.field-input.mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+textarea.field-input {
+  height: 80px;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+/* Info card */
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.info-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.info-card-body {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.info-card-body ol {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.info-card-body li {
+  margin-bottom: 6px;
+}
+
+.info-card-body code {
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--accent);
+}
+
+.info-card-body a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.info-card-body a:hover {
+  text-decoration: underline;
+}
+
+/* Status / test result */
+.status-card {
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.status-card.success {
+  background: var(--success-bg);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.status-card.error {
+  background: var(--error-bg);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.status-card.warning {
+  background: var(--warning-bg);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.status-card.neutral {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.status-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.status-card.success .status-icon { color: var(--success); }
+.status-card.error .status-icon { color: var(--error); }
+.status-card.warning .status-icon { color: var(--warning); }
+
+.status-text {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.status-text strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.status-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Buttons */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  flex: 1;
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary:active:not(:disabled) { background: #1d4ed8; }
+
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.btn-loading::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  margin-left: 8px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: crm-spin 0.6s linear infinite;
+}
+
+@keyframes crm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Summary table */
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+.summary-table td {
+  padding: 8px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-table td:first-child {
+  color: var(--text-secondary);
+  width: 120px;
+}
+
+.summary-table td:last-child {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Current config banner */
+.current-config {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: none;
+}
+
+.current-config.visible {
+  display: block;
+}
+
+.current-config-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success);
+  margin-bottom: 6px;
+}
+
+.current-config-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.current-config-detail span {
+  color: var(--text);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Requirements checklist */
+.checklist {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.checklist li:last-child {
+  border-bottom: none;
+}
+
+.check-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--text-dim);
+}
+
+.check-text {
+  color: var(--text-secondary);
+}
+
+.check-text strong {
+  color: var(--text);
+  font-weight: 500;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-left">
+    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+    <span class="header-title">CRM Setup</span>
+  </div>
+  <button class="header-back" id="backBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"/>
+      <polyline points="12 19 5 12 12 5"/>
+    </svg>
+    Back to CRM
+  </button>
+</div>
+
+<div class="container">
+
+  <!-- Steps indicator -->
+  <div class="steps" id="stepsIndicator">
+    <div class="step-dot active" data-step="0"></div>
+    <div class="step-line" data-after="0"></div>
+    <div class="step-dot" data-step="1"></div>
+    <div class="step-line" data-after="1"></div>
+    <div class="step-dot" data-step="2"></div>
+    <div class="step-line" data-after="2"></div>
+    <div class="step-dot" data-step="3"></div>
+  </div>
+
+  <!-- Current config (shown if already configured) -->
+  <div class="current-config" id="currentConfig">
+    <div class="current-config-title">Currently connected</div>
+    <div class="current-config-detail" id="currentConfigDetail"></div>
+  </div>
+
+  <!-- ─── STEP 0: Prerequisites ─── -->
+  <div class="step-panel active" id="step0">
+    <h2 class="step-heading">Before You Start</h2>
+    <p class="step-desc">
+      This wizard connects OpenVoiceUI to a Twenty CRM instance. Make sure the following are in place before continuing.
+    </p>
+
+    <div class="info-card">
+      <div class="info-card-title">Requirements</div>
+      <ul class="checklist">
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>Twenty CRM server running</strong> — self-hosted or cloud. The REST API must be accessible over HTTPS.</span>
+        </li>
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>Domain with SSL</strong> — e.g. <code>crm.yourdomain.com</code>. Required for secure API calls and iframe embedding.</span>
+        </li>
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>Wildcard subdomain (multi-tenant)</strong> — if using multi-workspace mode, you need <code>*.crm.yourdomain.com</code> DNS + a wildcard SSL certificate (Let's Encrypt DNS-01 recommended).</span>
+        </li>
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>Nginx iframe headers</strong> — your CRM's nginx config must include: <code>Content-Security-Policy: frame-ancestors https://*.yourdomain.com</code> to allow iframe embedding.</span>
+        </li>
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>Cloudflare users</strong> — if using Cloudflare, set the CRM subdomain to DNS-only (gray cloud). Cloudflare free plan does not issue certs for nested wildcards like <code>*.crm.yourdomain.com</code>.</span>
+        </li>
+        <li>
+          <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span class="check-text"><strong>No caching</strong> — set <code>Cache-Control: no-store, no-cache</code> on the CRM proxy. Stale iframes cause auth problems.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="step0Next">Continue</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 1: CRM Server URL ─── -->
+  <div class="step-panel" id="step1">
+    <h2 class="step-heading">Connect to CRM</h2>
+    <p class="step-desc">
+      Enter the URL of your Twenty CRM instance. This is the main login page URL.
+    </p>
+
+    <div class="field">
+      <label class="field-label" for="crmUrl">CRM Server URL</label>
+      <input class="field-input" id="crmUrl" type="url" placeholder="https://crm.yourdomain.com" autocomplete="url" spellcheck="false">
+      <div class="field-hint">The base URL where Twenty CRM is hosted. Include the protocol (https://).</div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="crmSubdomain">Workspace Subdomain (optional)</label>
+      <input class="field-input" id="crmSubdomain" type="text" placeholder="auto-detected from username" autocomplete="off" spellcheck="false">
+      <div class="field-hint">Leave blank to auto-detect from your username. Only needed for multi-workspace setups where your workspace subdomain differs from your username.</div>
+    </div>
+
+    <div id="urlTestResult"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="step1Back">Back</button>
+      <button class="btn btn-primary" id="step1Next">Check Connection</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2: Create Workspace + API Key ─── -->
+  <div class="step-panel" id="step2">
+    <h2 class="step-heading">Workspace & API Key</h2>
+    <p class="step-desc">
+      You need a workspace on the CRM server and an API key for your agent to access it.
+    </p>
+
+    <div class="info-card">
+      <div class="info-card-title">Create your workspace (if you don't have one)</div>
+      <div class="info-card-body">
+        <ol>
+          <li>Open <a href="#" id="signupLink" target="_blank">your CRM server</a> in a new tab</li>
+          <li>Click <strong>Sign up</strong> and create an account</li>
+          <li>Complete the onboarding wizard to initialize your workspace</li>
+          <li>Note your workspace subdomain from the URL bar</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="info-card">
+      <div class="info-card-title">Generate an API key</div>
+      <div class="info-card-body">
+        <ol>
+          <li>Log in to your CRM workspace</li>
+          <li>Go to <strong>Settings</strong> (gear icon, bottom-left)</li>
+          <li>Click <strong>APIs & Webhooks</strong> in the sidebar</li>
+          <li>Click <strong>Create API key</strong></li>
+          <li>Set name: <code>OpenVoiceUI Agent</code></li>
+          <li>Set expiration: <strong>Never</strong> (or your preferred duration)</li>
+          <li>Copy the generated token</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="apiKey">API Key</label>
+      <textarea class="field-input mono" id="apiKey" placeholder="eyJhbGciOiJIUzI1NiIs..." spellcheck="false"></textarea>
+      <div class="field-hint">Paste the full JWT token from Twenty CRM. This is stored securely on the server, never in the browser.</div>
+    </div>
+
+    <div id="keyTestResult"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="step2Back">Back</button>
+      <button class="btn btn-primary" id="step2Next">Test & Save</button>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3: Done ─── -->
+  <div class="step-panel" id="step3">
+    <h2 class="step-heading">Setup Complete</h2>
+    <p class="step-desc">
+      Your CRM is connected and ready to use.
+    </p>
+
+    <div id="finalStatus"></div>
+
+    <table class="summary-table" id="summaryTable">
+      <tr><td>Server</td><td id="sumUrl"></td></tr>
+      <tr><td>Subdomain</td><td id="sumSubdomain"></td></tr>
+      <tr><td>API Key</td><td id="sumKey"></td></tr>
+      <tr><td>Latency</td><td id="sumLatency"></td></tr>
+    </table>
+
+    <div class="info-card">
+      <div class="info-card-title">What's next</div>
+      <div class="info-card-body">
+        <ol>
+          <li>Open the <strong>CRM</strong> page from your desktop to see your workspace embedded in the UI</li>
+          <li>Your AI agent can now manage contacts, companies, deals, notes, and tasks via the CRM skill</li>
+          <li>Say "open my CRM" or "show my pipeline" to navigate directly</li>
+        </ol>
+        <p style="margin-top:8px;">If the agent also needs direct API access (for autonomous CRM operations), set the <code>TWENTY_CRM_API_KEY</code> environment variable in your agent's configuration to the same API key.</p>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="openCrmBtn">Open CRM</button>
+      <button class="btn btn-secondary" id="reconfigureBtn">Reconfigure</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var currentStep = 0;
+  var totalSteps = 4;
+  var savedCrmUrl = '';
+  var savedSubdomain = '';
+
+  // DOM refs
+  var stepsIndicator = document.getElementById('stepsIndicator');
+  var currentConfig = document.getElementById('currentConfig');
+  var currentConfigDetail = document.getElementById('currentConfigDetail');
+  var panels = [
+    document.getElementById('step0'),
+    document.getElementById('step1'),
+    document.getElementById('step2'),
+    document.getElementById('step3'),
+  ];
+
+  var crmUrlInput = document.getElementById('crmUrl');
+  var subdomainInput = document.getElementById('crmSubdomain');
+  var apiKeyInput = document.getElementById('apiKey');
+  var urlTestResult = document.getElementById('urlTestResult');
+  var keyTestResult = document.getElementById('keyTestResult');
+  var signupLink = document.getElementById('signupLink');
+
+  // Navigation
+  function goToStep(n) {
+    currentStep = Math.max(0, Math.min(n, totalSteps - 1));
+    panels.forEach(function(p, i) {
+      p.classList.toggle('active', i === currentStep);
+    });
+    updateDots();
+    window.scrollTo(0, 0);
+  }
+
+  function updateDots() {
+    var dots = stepsIndicator.querySelectorAll('.step-dot');
+    var lines = stepsIndicator.querySelectorAll('.step-line');
+    dots.forEach(function(d, i) {
+      d.classList.remove('active', 'done');
+      if (i === currentStep) d.classList.add('active');
+      else if (i < currentStep) d.classList.add('done');
+    });
+    lines.forEach(function(l, i) {
+      l.classList.toggle('done', i < currentStep);
+    });
+  }
+
+  // Status card builder
+  function statusHtml(type, title, detail) {
+    var iconMap = {
+      success: '<polyline points="20 6 9 17 4 12"/>',
+      error: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+      warning: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+      neutral: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="12" y1="8" x2="12" y2="12"/>',
+    };
+    return '<div class="status-card ' + type + '">' +
+      '<svg class="status-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      (iconMap[type] || iconMap.neutral) + '</svg>' +
+      '<div class="status-text"><strong>' + title + '</strong>' +
+      (detail ? '<span class="status-detail">' + detail + '</span>' : '') +
+      '</div></div>';
+  }
+
+  // Load existing config on init
+  function loadExistingConfig() {
+    fetch('/api/crm/config')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.configured) {
+          currentConfig.classList.add('visible');
+          currentConfigDetail.innerHTML =
+            'Server: <span>' + (data.crm_url || '?') + '</span><br>' +
+            'Subdomain: <span>' + (data.subdomain || data.username || '?') + '</span><br>' +
+            'API Key: <span>' + (data.api_key_preview || '?') + '</span>';
+
+          // Pre-fill fields
+          if (data.crm_url) crmUrlInput.value = data.crm_url;
+          if (data.subdomain) subdomainInput.value = data.subdomain;
+          savedCrmUrl = data.crm_url || '';
+          savedSubdomain = data.subdomain || data.username || '';
+        }
+        if (data.username && !subdomainInput.value) {
+          subdomainInput.placeholder = data.username + ' (auto-detected)';
+          savedSubdomain = data.username;
+        }
+      })
+      .catch(function() {});
+  }
+
+  // Step 0: Next
+  document.getElementById('step0Next').addEventListener('click', function() {
+    goToStep(1);
+  });
+
+  // Step 1: Check URL reachability
+  document.getElementById('step1Back').addEventListener('click', function() {
+    goToStep(0);
+  });
+
+  document.getElementById('step1Next').addEventListener('click', function() {
+    var url = crmUrlInput.value.trim().replace(/\/+$/, '');
+    if (!url) {
+      urlTestResult.innerHTML = statusHtml('error', 'URL required', 'Enter the CRM server URL to continue.');
+      return;
+    }
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+      crmUrlInput.value = url;
+    }
+
+    savedCrmUrl = url;
+    savedSubdomain = subdomainInput.value.trim() || savedSubdomain;
+
+    var btn = document.getElementById('step1Next');
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+    btn.textContent = 'Checking';
+    urlTestResult.innerHTML = '';
+
+    // Just try to reach the URL (we don't have the key yet, so a connectivity check)
+    fetch('/api/crm/test-connection', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ crm_url: url, api_key: 'test-connectivity-only' }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Check Connection';
+
+      // Even a 401 means the server is reachable
+      if (data.ok || data.status_code === 401 || data.status_code === 403) {
+        urlTestResult.innerHTML = statusHtml('success', 'Server is reachable',
+          'Connected to ' + url + ' (' + (data.latency_ms || '?') + 'ms)');
+        signupLink.href = url;
+        signupLink.textContent = url;
+        goToStep(2);
+      } else if (data.status_code === 0) {
+        urlTestResult.innerHTML = statusHtml('error', 'Cannot reach server', data.message);
+      } else {
+        urlTestResult.innerHTML = statusHtml('warning', 'Unexpected response',
+          'HTTP ' + data.status_code + '. The server may not be a Twenty CRM instance.');
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Check Connection';
+      urlTestResult.innerHTML = statusHtml('error', 'Connection failed', err.message);
+    });
+  });
+
+  // Step 2: Test & save
+  document.getElementById('step2Back').addEventListener('click', function() {
+    goToStep(1);
+  });
+
+  document.getElementById('step2Next').addEventListener('click', function() {
+    var key = apiKeyInput.value.trim();
+    if (!key) {
+      keyTestResult.innerHTML = statusHtml('error', 'API key required', 'Paste the JWT token from Twenty CRM.');
+      return;
+    }
+
+    var btn = document.getElementById('step2Next');
+    btn.disabled = true;
+    btn.classList.add('btn-loading');
+    btn.textContent = 'Testing';
+    keyTestResult.innerHTML = '';
+
+    fetch('/api/crm/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        crm_url: savedCrmUrl,
+        subdomain: savedSubdomain || subdomainInput.value.trim(),
+        api_key: key,
+      }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Test & Save';
+
+      if (data.ok && data.connection && data.connection.ok) {
+        keyTestResult.innerHTML = statusHtml('success', 'Connected and saved',
+          'API key verified. Response time: ' + (data.connection.latency_ms || '?') + 'ms');
+
+        // Fill summary
+        document.getElementById('sumUrl').textContent = savedCrmUrl;
+        document.getElementById('sumSubdomain').textContent = savedSubdomain || '(auto)';
+        document.getElementById('sumKey').textContent = key.substring(0, 12) + '...';
+        document.getElementById('sumLatency').textContent = (data.connection.latency_ms || '?') + 'ms';
+        document.getElementById('finalStatus').innerHTML = statusHtml('success', 'CRM connected', 'Configuration saved to server.');
+
+        setTimeout(function() { goToStep(3); }, 800);
+      } else if (data.connection) {
+        keyTestResult.innerHTML = statusHtml('error', 'Connection failed', data.connection.message);
+      } else if (data.error) {
+        keyTestResult.innerHTML = statusHtml('error', 'Error', data.error);
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.classList.remove('btn-loading');
+      btn.textContent = 'Test & Save';
+      keyTestResult.innerHTML = statusHtml('error', 'Request failed', err.message);
+    });
+  });
+
+  // Step 3: Done
+  document.getElementById('openCrmBtn').addEventListener('click', function() {
+    try {
+      if (window.parent && window.parent.postMessage) {
+        window.parent.postMessage({ type: 'navigate-page', pageId: 'crm' }, '*');
+      }
+    } catch (e) {}
+    window.location.href = '/pages/crm.html';
+  });
+
+  document.getElementById('reconfigureBtn').addEventListener('click', function() {
+    goToStep(1);
+  });
+
+  // Back button → CRM page
+  document.getElementById('backBtn').addEventListener('click', function() {
+    try {
+      if (window.parent && window.parent.postMessage) {
+        window.parent.postMessage({ type: 'navigate-page', pageId: 'crm' }, '*');
+      }
+    } catch (e) {}
+    window.location.href = '/pages/crm.html';
+  });
+
+  // Init
+  loadExistingConfig();
+  goToStep(0);
+
+})();
+</script>
+</body>
+</html>
