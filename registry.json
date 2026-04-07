@@ -41,6 +41,14 @@
       "description": "Connect your X/Twitter account to fetch and search your bookmarks. Your agent can research bookmarked content and report findings.",
       "type": "page",
       "author": "jambot"
+    },
+    {
+      "id": "midiviz",
+      "name": "MidiViz Audio Visualizer",
+      "version": "1.0.0",
+      "description": "Audio-reactive MIDI visualizer. Streams microphone audio into midiviz.com for real-time sound visualization.",
+      "type": "page",
+      "author": "jambot"
     }
   ]
 }

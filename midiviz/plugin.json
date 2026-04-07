@@ -1,0 +1,18 @@
+{
+  "id": "midiviz",
+  "name": "MidiViz Audio Visualizer",
+  "version": "1.0.0",
+  "description": "Audio-reactive MIDI visualizer. Embeds midiviz.com with microphone passthrough for real-time audio visualization in canvas.",
+  "author": "jambot",
+  "type": "page",
+  "license": "MIT",
+  "requires": "openvoiceui >= 1.0",
+
+  "pages": [
+    {
+      "file": "pages/midiviz.html",
+      "name": "MidiViz",
+      "icon": "music"
+    }
+  ]
+}
