@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Twitter Bookmarks Setup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { background: #0a0a0f; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+  .card { background: #12131a; border: 1px solid #1e2030; border-radius: 12px; }
+  .input-field { background: #0d0e14; border: 1px solid #2a2d3a; border-radius: 8px; color: #e2e8f0; width: 100%; padding: 12px 14px; font-size: 14px; font-family: monospace; outline: none; transition: border-color 0.2s; }
+  .input-field:focus { border-color: #3b82f6; }
+  .input-field::placeholder { color: #4a5568; }
+  .btn { padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; transition: all 0.2s; min-height: 44px; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { background: #1e3a5f; color: #64748b; cursor: not-allowed; }
+  .btn-secondary { background: #1e2030; color: #94a3b8; border: 1px solid #2a2d3a; }
+  .btn-secondary:hover { background: #252836; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .status-ok { background: #22c55e; }
+  .status-err { background: #ef4444; }
+  .status-pending { background: #eab308; }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: #1e3a5f; color: #3b82f6; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .perm-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 8px; border: 1px solid #1e2030; margin-bottom: 8px; transition: border-color 0.2s; }
+  .perm-row:hover { border-color: #2a2d3a; }
+  .perm-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; margin-top: 2px; }
+  .perm-toggle input { opacity: 0; width: 0; height: 0; }
+  .perm-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #2a2d3a; border-radius: 12px; transition: background 0.2s; }
+  .perm-slider:before { content: ''; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #64748b; border-radius: 50%; transition: all 0.2s; }
+  .perm-toggle input:checked + .perm-slider { background: #1d4ed8; }
+  .perm-toggle input:checked + .perm-slider:before { transform: translateX(20px); background: #3b82f6; }
+  .risk-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .risk-safe { background: #0a2e1a; color: #4ade80; }
+  .risk-low { background: #1a2e0a; color: #a3e635; }
+  .risk-high { background: #2e1a0a; color: #fb923c; }
+  .risk-critical { background: #2e0a0a; color: #f87171; }
+</style>
+</head>
+<body>
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+
+  <!-- Header -->
+  <div class="card" style="padding: 20px; margin-bottom: 16px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 40px; height: 40px; background: #1e2030; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M4 4l11.733 16h4.267l-11.733 -16h-4.267z"/><path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772"/></svg>
+      </div>
+      <div>
+        <h1 style="margin: 0; font-size: 18px; font-weight: 700;">Twitter Bookmarks</h1>
+        <p style="margin: 2px 0 0; font-size: 13px; color: #64748b;">Connect your X account to search and research your bookmarks</p>
+      </div>
+      <div id="status-indicator" style="margin-left: auto;">
+        <span class="status-dot status-pending"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Card (shown when configured) -->
+  <div id="status-card" class="card" style="padding: 16px; margin-bottom: 16px; display: none;">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+      <span class="status-dot" id="conn-dot"></span>
+      <span id="conn-text" style="font-size: 14px; font-weight: 600;"></span>
+    </div>
+    <div style="font-size: 13px; color: #64748b;">
+      <div>ct0: <code id="ct0-preview" style="color: #94a3b8;"></code></div>
+      <div>auth_token: <code id="auth-preview" style="color: #94a3b8;"></code></div>
+      <div style="margin-top: 4px;">Configured: <span id="config-date" style="color: #94a3b8;"></span></div>
+    </div>
+    <div style="margin-top: 12px; display: flex; gap: 8px;">
+      <button class="btn btn-secondary" onclick="testConnection()" style="font-size: 13px; padding: 8px 16px;">Test Connection</button>
+      <button class="btn btn-secondary" onclick="showSetup()" style="font-size: 13px; padding: 8px 16px;">Update Cookies</button>
+    </div>
+  </div>
+
+  <!-- Setup Form -->
+  <div id="setup-form" class="card" style="padding: 20px; margin-bottom: 16px;">
+    <h2 style="margin: 0 0 16px; font-size: 15px; font-weight: 700;">Setup</h2>
+
+    <!-- Instructions -->
+    <div style="margin-bottom: 20px;">
+      <p style="font-size: 13px; color: #94a3b8; margin: 0 0 12px;">Get your session cookies from your browser:</p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div class="step-num">1</div>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #cbd5e1;">Go to <strong>x.com</strong> and make sure you're logged in</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div class="step-num">2</div>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #cbd5e1;">Press <strong>F12</strong> to open dev tools</p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div class="step-num">3</div>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #cbd5e1;">Click <strong>Application</strong> tab, then <strong>Cookies</strong> &rarr; <strong>https://x.com</strong></p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-start;">
+          <div class="step-num">4</div>
+          <p style="margin: 3px 0 0; font-size: 13px; color: #cbd5e1;">Find and copy <strong>ct0</strong> and <strong>auth_token</strong> values</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cookie Inputs -->
+    <div style="margin-bottom: 14px;">
+      <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">ct0 <span style="color: #64748b; font-weight: 400;">(CSRF token)</span></label>
+      <input type="text" id="ct0-input" class="input-field" placeholder="Paste ct0 cookie value here" autocomplete="off">
+    </div>
+
+    <div style="margin-bottom: 20px;">
+      <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">auth_token <span style="color: #64748b; font-weight: 400;">(session token)</span></label>
+      <input type="text" id="auth-input" class="input-field" placeholder="Paste auth_token cookie value here" autocomplete="off">
+    </div>
+
+    <!-- Feedback -->
+    <div id="feedback" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+
+    <!-- Submit -->
+    <button id="save-btn" class="btn btn-primary" onclick="saveConfig()" style="width: 100%;">Connect</button>
+
+    <p style="font-size: 11px; color: #4a5568; margin: 12px 0 0; text-align: center;">
+      Cookies are stored on your server only. They expire when your X session expires (~yearly). No data is sent to third parties.
+    </p>
+  </div>
+
+  <!-- Permissions -->
+  <div id="permissions-card" class="card" style="padding: 20px; margin-bottom: 16px; display: none;">
+    <h2 style="margin: 0 0 4px; font-size: 15px; font-weight: 700;">Agent Permissions</h2>
+    <p style="margin: 0 0 16px; font-size: 12px; color: #64748b;">Control what your agent can do with your X account. Write actions can get your account banned.</p>
+    <div id="permissions-list"></div>
+  </div>
+
+  <!-- How to use -->
+  <div class="card" style="padding: 20px;">
+    <h2 style="margin: 0 0 12px; font-size: 15px; font-weight: 700;">How to Use</h2>
+    <div style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
+      <p style="margin: 0 0 8px;">Once connected, ask your agent:</p>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li>"Check my bookmarks"</li>
+        <li>"What's new in my X bookmarks?"</li>
+        <li>"Research my latest bookmarks"</li>
+        <li>"Find that bookmark about browser automation"</li>
+      </ul>
+      <p style="margin: 10px 0 0;">Your agent will fetch your bookmarks, research any linked content, and tell you how it applies to your systems.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+async function loadStatus() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/twitter/config`);
+    const data = await resp.json();
+
+    if (data.configured) {
+      document.getElementById('status-card').style.display = 'block';
+      document.getElementById('setup-form').style.display = 'none';
+
+      document.getElementById('ct0-preview').textContent = data.ct0_preview || '';
+      document.getElementById('auth-preview').textContent = data.auth_token_preview || '';
+      document.getElementById('config-date').textContent = data.configured_at ? new Date(data.configured_at).toLocaleDateString() : '';
+
+      const lastTest = data.last_test || {};
+      const dot = document.getElementById('conn-dot');
+      const text = document.getElementById('conn-text');
+      const indicator = document.getElementById('status-indicator').querySelector('.status-dot');
+
+      if (lastTest.ok) {
+        dot.className = 'status-dot status-ok';
+        indicator.className = 'status-dot status-ok';
+        text.textContent = 'Connected';
+        text.style.color = '#22c55e';
+      } else {
+        dot.className = 'status-dot status-err';
+        indicator.className = 'status-dot status-err';
+        text.textContent = lastTest.message || 'Connection error';
+        text.style.color = '#ef4444';
+      }
+    } else {
+      document.getElementById('status-card').style.display = 'none';
+      document.getElementById('setup-form').style.display = 'block';
+    }
+  } catch (e) {
+    console.error('Failed to load status:', e);
+  }
+}
+
+function showSetup() {
+  document.getElementById('status-card').style.display = 'none';
+  document.getElementById('setup-form').style.display = 'block';
+}
+
+function showFeedback(msg, ok) {
+  const el = document.getElementById('feedback');
+  el.style.display = 'block';
+  el.style.background = ok ? '#0a2e1a' : '#2e0a0a';
+  el.style.border = `1px solid ${ok ? '#166534' : '#7f1d1d'}`;
+  el.style.color = ok ? '#4ade80' : '#fca5a5';
+  el.textContent = msg;
+}
+
+async function saveConfig() {
+  const ct0 = document.getElementById('ct0-input').value.trim();
+  const auth = document.getElementById('auth-input').value.trim();
+  const btn = document.getElementById('save-btn');
+  const fb = document.getElementById('feedback');
+
+  if (!ct0 || !auth) {
+    showFeedback('Both cookie values are required.', false);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Connecting...';
+  fb.style.display = 'none';
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/twitter/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ct0, auth_token: auth }),
+    });
+    const data = await resp.json();
+
+    if (data.ok) {
+      showFeedback(data.message, true);
+      setTimeout(() => loadStatus(), 1500);
+    } else {
+      showFeedback(data.error || 'Connection failed', false);
+    }
+  } catch (e) {
+    showFeedback(`Error: ${e.message}`, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Connect';
+  }
+}
+
+async function testConnection() {
+  const dot = document.getElementById('conn-dot');
+  const text = document.getElementById('conn-text');
+  dot.className = 'status-dot status-pending';
+  text.textContent = 'Testing...';
+  text.style.color = '#eab308';
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/twitter/status`);
+    const data = await resp.json();
+
+    if (data.connection?.ok) {
+      dot.className = 'status-dot status-ok';
+      text.textContent = 'Connected';
+      text.style.color = '#22c55e';
+    } else {
+      dot.className = 'status-dot status-err';
+      text.textContent = data.connection?.message || 'Failed';
+      text.style.color = '#ef4444';
+    }
+  } catch (e) {
+    dot.className = 'status-dot status-err';
+    text.textContent = `Error: ${e.message}`;
+    text.style.color = '#ef4444';
+  }
+}
+
+async function loadPermissions() {
+  try {
+    const resp = await fetch(`${API_BASE}/api/twitter/permissions`);
+    const perms = await resp.json();
+    const container = document.getElementById('permissions-list');
+    document.getElementById('permissions-card').style.display = 'block';
+
+    container.innerHTML = perms.map(p => `
+      <div class="perm-row" style="${p.risk === 'critical' ? 'border-color: #7f1d1d;' : ''}">
+        <label class="perm-toggle">
+          <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="togglePermission('${p.id}', this.checked, this)">
+          <span class="perm-slider"></span>
+        </label>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 14px; font-weight: 600;">${p.label}</span>
+            <span class="risk-badge risk-${p.risk}">${p.risk}</span>
+          </div>
+          <p style="margin: 4px 0 0; font-size: 12px; color: #94a3b8;">${p.description}</p>
+          ${p.warning ? `<p style="margin: 6px 0 0; font-size: 11px; color: ${p.risk === 'critical' ? '#f87171' : p.risk === 'high' ? '#fb923c' : '#94a3b8'}; line-height: 1.4;">${p.warning}</p>` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load permissions:', e);
+  }
+}
+
+async function togglePermission(id, enabled, checkbox) {
+  // Confirm before enabling high-risk permissions
+  const highRisk = ['like_tweets', 'post_tweets', 'send_dms', 'follow_unfollow', 'retweet'];
+  if (enabled && highRisk.includes(id)) {
+    const confirmed = confirm(
+      'WARNING: Enabling write actions can get your X account suspended or permanently banned.\n\n' +
+      'X actively detects and punishes automated account activity.\n\n' +
+      'Are you sure you want to enable this?'
+    );
+    if (!confirmed) {
+      checkbox.checked = false;
+      return;
+    }
+  }
+
+  try {
+    const body = {};
+    body[id] = enabled;
+    await fetch(`${API_BASE}/api/twitter/permissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    checkbox.checked = !enabled;
+    console.error('Failed to update permission:', e);
+  }
+}
+
+loadStatus();
+loadPermissions();
+</script>
+</body>
+</html>

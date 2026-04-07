@@ -33,6 +33,14 @@
       "description": "Connect to a Twenty CRM instance for contact, company, deal, and task management. Includes an embedded CRM view and guided setup wizard.",
       "type": "page",
       "author": "jambot"
+    },
+    {
+      "id": "twitter-bookmarks",
+      "name": "Twitter Bookmarks",
+      "version": "1.0.0",
+      "description": "Connect your X/Twitter account to fetch and search your bookmarks. Your agent can research bookmarked content and report findings.",
+      "type": "page",
+      "author": "jambot"
     }
   ]
 }
