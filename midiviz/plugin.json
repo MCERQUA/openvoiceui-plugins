@@ -8,11 +8,13 @@
   "license": "MIT",
   "requires": "openvoiceui >= 1.0",
 
+  "icon": "midiviz-icon.png",
+
   "pages": [
     {
       "file": "pages/midiviz.html",
       "name": "MidiViz",
-      "icon": "music"
+      "icon": "midiviz-icon.png"
     }
   ]
 }
