@@ -1,0 +1,2621 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta name="page-icon" content="seo"/>
+<meta name="seo-api-base" content="/api/seo-platform"/>
+<title>SEO Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "surface": "#131318",
+        "surface-dim": "#131318",
+        "surface-container-lowest": "#0e0e13",
+        "surface-container-low": "#1b1b20",
+        "surface-container": "#1f1f25",
+        "surface-container-high": "#2a292f",
+        "surface-container-highest": "#35343a",
+        "surface-bright": "#39383e",
+        "on-surface": "#e4e1e9",
+        "on-surface-variant": "#c2c6d6",
+        "primary": "#adc6ff",
+        "primary-container": "#4d8eff",
+        "on-primary": "#002e6a",
+        "on-primary-container": "#00285d",
+        "secondary": "#4ae176",
+        "secondary-container": "#00b954",
+        "on-secondary": "#003915",
+        "on-secondary-container": "#004119",
+        "tertiary": "#ffb3ad",
+        "tertiary-container": "#ff5451",
+        "on-tertiary": "#68000a",
+        "error": "#ffb4ab",
+        "error-container": "#93000a",
+        "outline": "#8c909f",
+        "outline-variant": "#424754",
+        "inverse-surface": "#e4e1e9",
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; background: #0e0e13; color: #e4e1e9; }
+  .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
+  .tabular { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #0e0e13; }
+  ::-webkit-scrollbar-thumb { background: #35343a; border-radius: 10px; }
+  .radial-gauge {
+    background: conic-gradient(#00b954 100%, transparent 0);
+    mask: radial-gradient(farthest-side, transparent 80%, black 81%);
+    -webkit-mask: radial-gradient(farthest-side, transparent 80%, black 81%);
+  }
+  .venn-circle { mix-blend-mode: screen; opacity: 0.6; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  /* Nav items */
+  .nav-item { transition: all 0.15s ease; cursor: pointer; }
+  .nav-item:hover { color: #e4e1e9; }
+  /* Audit issue expandable rows */
+  .audit-issue-row { border-radius: 8px; overflow: hidden; margin-bottom: 2px; }
+  .audit-issue-row:hover { background: rgba(255,255,255,0.02); }
+  .audit-issue-row .material-symbols-outlined { transition: transform 0.2s ease; }
+  /* Sidebar nav active (desktop) */
+  #sidebar .nav-item.active { color: #adc6ff; border-left: 3px solid #adc6ff; background: rgba(173,198,255,0.08); }
+  /* Bottom nav active (mobile) */
+  #bottom-nav .nav-item.active { color: #adc6ff; }
+  #bottom-nav .nav-item.active span:first-child { color: #adc6ff; }
+  #bottom-nav .nav-item { min-width: 0; }
+  /* View panels hidden by default, shown by JS */
+  .view-panel { display: none; }
+  /* Mobile-compact: tighter spacing across all views */
+  @media (max-width: 767px) {
+    .space-y-4 > * + * { margin-top: 8px; }
+    .space-y-8 > * + * { margin-top: 12px; }
+    .view-panel h2 { font-size: 16px; }
+    .view-panel h3 { font-size: 11px; }
+  }
+</style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface overflow-x-hidden">
+<!-- Black masks to hide content scrolling behind the canvas iframe chrome (mobile only) -->
+<div class="md:hidden" style="position:fixed;top:0;left:0;right:0;height:25px;background:#000;z-index:9999;pointer-events:none"></div>
+<div class="md:hidden" style="position:fixed;bottom:0;left:0;right:0;height:25px;background:#000;z-index:9999;pointer-events:none"></div>
+
+<!-- ============================================ -->
+<!-- SIDEBAR (Desktop only, hidden on mobile)     -->
+<!-- ============================================ -->
+<aside id="sidebar" class="hidden md:flex fixed left-[25px] top-[25px] bottom-[25px] w-56 flex-col z-50 bg-[#0e0e13] border-r border-outline-variant/20 overflow-hidden py-3">
+  <div class="px-5 mb-4">
+    <h1 class="text-base font-bold tracking-tighter text-on-surface">SEO DASHBOARD</h1>
+    <p class="text-[9px] text-on-surface-variant/60 tracking-widest uppercase">DataForSEO</p>
+  </div>
+  <nav class="flex-1 space-y-px">
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="projects" onclick="nav('projects')">
+      <span class="material-symbols-outlined mr-2.5 text-base">folder</span>Projects
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="dashboard" onclick="nav('dashboard')">
+      <span class="material-symbols-outlined mr-2.5 text-base">dashboard</span>Overview
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="domain" onclick="nav('domain')">
+      <span class="material-symbols-outlined mr-2.5 text-base">domain</span>Domain Analysis
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="position" onclick="nav('position')">
+      <span class="material-symbols-outlined mr-2.5 text-base">monitoring</span>Rank Tracking
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="keywords" onclick="nav('keywords')">
+      <span class="material-symbols-outlined mr-2.5 text-base">key</span>Keyword Magic
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="keyword-overview" onclick="nav('keyword-overview')">
+      <span class="material-symbols-outlined mr-2.5 text-base">search</span>Keyword Overview
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="keyword-gap" onclick="nav('keyword-gap')">
+      <span class="material-symbols-outlined mr-2.5 text-base">compare_arrows</span>Keyword Gap
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="audit" onclick="nav('audit')">
+      <span class="material-symbols-outlined mr-2.5 text-base">fact_check</span>Site Audit
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="ai-visibility" onclick="nav('ai-visibility')">
+      <span class="material-symbols-outlined mr-2.5 text-base">psychology</span>AI Visibility
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="backlinks" onclick="nav('backlinks')">
+      <span class="material-symbols-outlined mr-2.5 text-base">link</span>Backlinks
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="local" onclick="nav('local')">
+      <span class="material-symbols-outlined mr-2.5 text-base">storefront</span>Local SEO
+    </a>
+    <a class="nav-item flex items-center px-5 py-[7px] text-[13px] font-medium text-on-surface-variant" data-view="content" onclick="nav('content')">
+      <span class="material-symbols-outlined mr-2.5 text-base">campaign</span>Content Monitor
+    </a>
+  </nav>
+  <div class="px-5 mt-auto flex gap-4">
+    <a class="flex items-center text-[10px] text-on-surface-variant/50 hover:text-on-surface cursor-pointer">
+      <span class="material-symbols-outlined mr-1 text-xs">settings</span>Settings
+    </a>
+    <a class="flex items-center text-[10px] text-on-surface-variant/50 hover:text-on-surface cursor-pointer">
+      <span class="material-symbols-outlined mr-1 text-xs">help</span>Help
+    </a>
+  </div>
+</aside>
+
+<!-- ============================================ -->
+<!-- TOP HEADER BAR                               -->
+<!-- ============================================ -->
+<header class="fixed top-[25px] left-[25px] right-[25px] md:left-[calc(25px+14rem)] h-14 z-40 bg-[#131318]/90 backdrop-blur-md border-b border-outline-variant/20 flex items-center justify-between px-4 md:px-6">
+  <div class="flex items-center gap-3 md:gap-6 min-w-0">
+    <!-- Mobile: app title -->
+    <div class="flex items-center gap-2 md:hidden">
+      <span class="material-symbols-outlined text-primary">analytics</span>
+      <span class="text-base font-bold tracking-tight text-on-surface">SEO</span>
+    </div>
+    <!-- Project selector -->
+    <button onclick="nav('projects')" class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-lg border border-outline-variant/30 text-sm font-medium hover:border-primary/50 transition-all tabular truncate max-w-[200px] md:max-w-none">
+      <span class="project-dot w-2 h-2 rounded-full bg-outline flex-shrink-0"></span>
+      <span id="topbar-domain" class="truncate" data-project-domain>Select a project</span>
+      <span class="material-symbols-outlined text-sm flex-shrink-0">expand_more</span>
+    </button>
+    <div class="hidden md:flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#4ae176]"></span>
+      <span class="text-[10px] font-bold tracking-widest text-secondary uppercase">Live</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 md:gap-4">
+    <span id="seo-cost-display" class="hidden md:inline-flex items-center gap-1 text-xs font-medium tabular cursor-pointer hover:opacity-80" onclick="toggleUsagePanel()"></span>
+    <span id="seo-cost-display-mobile" class="md:hidden text-[10px] font-bold tabular cursor-pointer" onclick="toggleUsagePanel()"></span>
+    <button onclick="SEO.refreshCosts().then(()=>showToast('Costs updated','success'))" class="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-all">
+      <span class="material-symbols-outlined text-xl">refresh</span>
+    </button>
+    <button class="hidden md:block p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-all">
+      <span class="material-symbols-outlined text-xl">notifications</span>
+    </button>
+    <button onclick="refreshAll(this)" class="hidden md:inline-flex items-center gap-1.5 bg-secondary/15 text-secondary font-bold text-xs px-4 py-2 rounded-lg border border-secondary/20 hover:bg-secondary/25 transition-all">
+      <span class="material-symbols-outlined text-sm">sync</span> Refresh All (~$0.33)
+    </button>
+    <button id="create-report-btn" onclick="generateSEOReport(this)" class="hidden md:inline-flex bg-primary text-on-primary font-bold text-xs px-4 py-2 rounded-lg shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity">
+      Create Report
+    </button>
+    <button onclick="toggleDiagnosticPanel()" class="hidden md:block p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition-all" title="Data Pipeline Diagnostic">
+      <span class="material-symbols-outlined text-xl">troubleshoot</span>
+    </button>
+  </div>
+</header>
+
+<!-- ============================================ -->
+<!-- DIAGNOSTIC PANEL (overlay, checks data pipeline) -->
+<!-- ============================================ -->
+<div id="diagnostic-panel" style="display:none;position:fixed;top:90px;right:25px;width:520px;max-width:calc(100vw - 50px);max-height:80vh;overflow-y:auto;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:16px;z-index:101;box-shadow:0 20px 40px rgba(0,0,0,0.6)">
+  <div style="padding:16px 20px;border-bottom:1px solid rgba(66,71,84,0.2);display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h3 style="font-size:15px;font-weight:800;color:#e4e1e9;margin:0">Data Pipeline Diagnostic</h3>
+      <p style="font-size:10px;color:#8c909f;margin:2px 0 0">Verifies data exists and field mappings are correct per view</p>
+    </div>
+    <button onclick="toggleDiagnosticPanel()" style="background:none;border:none;color:#8c909f;cursor:pointer;font-size:18px">&times;</button>
+  </div>
+  <div id="diagnostic-body" style="padding:16px">
+    <div style="text-align:center;padding:20px;color:#8c909f">Click the button above to run diagnostics</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- USAGE & COSTS PANEL (overlay, toggled from header) -->
+<!-- ============================================ -->
+<div id="usage-panel" style="display:none;position:fixed;top:90px;right:25px;width:420px;max-width:calc(100vw - 50px);max-height:70vh;overflow-y:auto;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:16px;z-index:100;box-shadow:0 20px 40px rgba(0,0,0,0.6)">
+  <div style="padding:16px 20px;border-bottom:1px solid rgba(66,71,84,0.2);display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h3 style="font-size:15px;font-weight:800;color:#e4e1e9;margin:0">API Usage & Costs</h3>
+      <p style="font-size:10px;color:#8c909f;margin:2px 0 0">DataForSEO spending for this account</p>
+    </div>
+    <button onclick="toggleUsagePanel()" style="background:none;border:none;color:#8c909f;cursor:pointer;padding:4px"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <div id="usage-panel-content" style="padding:16px 20px">
+    <div style="text-align:center;color:#8c909f;font-size:12px;padding:20px">Loading...</div>
+  </div>
+</div>
+
+<!-- ============================================ -->
+<!-- MAIN CONTENT AREA                            -->
+<!-- ============================================ -->
+<main class="pt-[calc(25px+3.5rem)] pb-[calc(25px+7rem)] md:pb-8 px-2 md:px-6 md:ml-[calc(25px+15rem)] min-h-screen">
+
+<div id="view-projects" class="view-panel" >
+
+<!-- Portfolio Summary (top) — populated by JS -->
+<div id="portfolio-summary" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:16px;margin-bottom:16px;position:relative;overflow:hidden">
+  <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f;margin-bottom:4px">Total Tracked Keywords</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span id="portfolio-keywords" style="font-size:32px;font-weight:800;color:#e4e1e9;font-variant-numeric:tabular-nums">--</span>
+        <span id="portfolio-traffic" style="font-size:13px;font-weight:600;color:#adc6ff"></span>
+      </div>
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div id="portfolio-project-count" style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f;margin-bottom:4px">-- Projects</div>
+      <div id="portfolio-cost" style="font-size:11px;font-weight:600;color:#8c909f"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Competitors Management (per-project) -->
+<div id="competitors-mgmt" class="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden" style="margin-bottom:14px;display:none">
+<div onclick="toggleCompetitorsPanel(this)" class="p-4 flex items-center justify-between cursor-pointer hover:bg-surface-container/30 transition-colors select-none">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-size:18px">groups</span>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Managed Competitors</h3>
+<p class="text-[10px] text-on-surface-variant">Competitors for <span id="comp-mgmt-domain" class="text-primary">--</span> — used across all views</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant comp-panel-chevron" style="transition:transform 200ms">expand_more</span>
+</div>
+<div id="comp-mgmt-body" style="display:none">
+<div class="px-4 pb-3 flex flex-wrap gap-2 items-center">
+<input id="comp-mgmt-input" type="text" placeholder="Add competitor domains (comma-separated)..." class="flex-1 bg-surface-container border-none rounded-lg px-3 py-2 text-xs text-on-surface focus:ring-1 focus:ring-primary/40 min-w-[200px]" style="font-size:16px" onkeydown="if(event.key==='Enter')addManagedCompetitor()"/>
+<button onclick="discoverCompetitors(this)" class="bg-surface-container-high text-on-surface font-bold text-xs px-4 py-2 rounded-lg border border-outline-variant/10 hover:opacity-90 transition-opacity min-h-[44px]">Auto-Discover</button>
+<button onclick="addManagedCompetitor()" class="bg-primary text-on-primary font-bold text-xs px-4 py-2 rounded-lg hover:opacity-90 transition-opacity min-h-[44px]">Add</button>
+</div>
+<div id="comp-mgmt-list" class="px-4 pb-4">
+<div style="text-align:center;color:#64687a;font-size:12px;padding:12px">Select a project to manage competitors</div>
+</div>
+</div>
+</div>
+
+<!-- Search & Filters -->
+<div style="margin-bottom:14px">
+  <div style="position:relative;margin-bottom:10px">
+    <span class="material-symbols-outlined" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#8c909f;font-size:18px">search</span>
+    <input id="project-search" type="text" placeholder="Search domains..." oninput="filterProjects(this.value)" style="width:100%;background:#1f1f25;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 12px 10px 40px;color:#e4e1e9;font-size:16px;outline:none">
+  </div>
+  <div style="display:flex;gap:6px;overflow-x:auto">
+    <button style="white-space:nowrap;padding:6px 14px;border-radius:20px;background:rgba(173,198,255,0.1);border:1px solid rgba(173,198,255,0.2);color:#adc6ff;font-size:11px;font-weight:600">All Projects</button>
+    <button style="white-space:nowrap;padding:6px 14px;border-radius:20px;background:#1b1b20;border:1px solid rgba(66,71,84,0.2);color:#8c909f;font-size:11px;font-weight:600">Healthy</button>
+    <button style="white-space:nowrap;padding:6px 14px;border-radius:20px;background:#1b1b20;border:1px solid rgba(66,71,84,0.2);color:#8c909f;font-size:11px;font-weight:600">Warning</button>
+  </div>
+</div>
+
+<!-- Project Cards (full-width on mobile, grid on desktop) -->
+<div id="project-list" style="display:flex;flex-direction:column;gap:10px">
+
+  <!-- Add New Project -->
+  <div onclick="openAddProject()" style="border:2px dashed rgba(66,71,84,0.3);border-radius:12px;padding:20px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;color:#8c909f;font-size:13px;font-weight:600;transition:all 150ms;min-height:44px" onmouseover="this.style.borderColor='rgba(173,198,255,0.4)';this.style.color='#adc6ff'" onmouseout="this.style.borderColor='rgba(66,71,84,0.3)';this.style.color='#8c909f'">
+    <span class="material-symbols-outlined" style="font-size:20px">add_circle</span>
+    Add New Project
+  </div>
+
+</div>
+<!-- old stitch project cards removed -->
+</div>
+
+    </div>
+
+
+<div id="view-dashboard" class="view-panel" >
+<!-- Dashboard Header with Refresh -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+  <div>
+    <h2 class="text-base md:text-2xl font-bold tracking-tight text-on-surface">Overview</h2>
+    <p class="text-[10px] md:text-xs text-on-surface-variant">Saved queries (free). Refresh for latest.</p>
+  </div>
+  <span id="last-updated-dashboard" class="text-[10px] text-on-surface-variant tabular-nums"></span>
+  <button onclick="refreshDashboard(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;min-height:44px">Refresh (~$0.03)</button>
+  <button onclick="refreshAll(this)" style="background:rgba(74,225,118,0.1);border:1px solid rgba(74,225,118,0.3);color:#4ae176;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;min-height:44px">Refresh All + Report (~$0.33)</button>
+</div>
+
+<!-- Alerts Panel (populated by loadAlerts) -->
+<div id="dashboard-alerts-panel"></div>
+<!-- Dashboard Content -->
+<div class="space-y-4 md:space-y-8 space-y-4 md:space-y-8">
+<!-- KPI Grid -->
+<section class="grid grid-cols-3 gap-1.5 md:grid-cols-3 lg:grid-cols-6 md:gap-4">
+<!-- KPI 1 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-tertiary-container shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Keywords</p>
+<h2 id="dash-organic-keywords" class="text-base md:text-2xl font-black tabular">--</h2>
+<span id="dash-organic-keywords-change" class="text-[9px] font-medium text-tertiary tabular"></span>
+</div>
+<!-- KPI 2 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-outline-variant shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Traffic</p>
+<h2 id="dash-organic-traffic" class="text-base md:text-2xl font-black tabular">--</h2>
+<span id="dash-organic-traffic-change" class="text-[9px] font-medium text-on-surface-variant tabular"></span>
+</div>
+<!-- KPI 3 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-primary shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Authority</p>
+<h2 id="dash-domain-authority" class="text-base md:text-2xl font-black tabular">--</h2>
+<p id="dash-domain-authority-rank" class="text-[8px] text-primary font-medium uppercase tracking-tighter"></p>
+</div>
+<!-- KPI 4 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-primary-container shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Backlinks</p>
+<h2 id="dash-backlinks" class="text-base md:text-2xl font-black tabular">--</h2>
+<span id="dash-backlinks-change" class="text-[9px] font-medium text-primary-container tabular"></span>
+</div>
+<!-- KPI 5 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-tertiary-container shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Ref Domains</p>
+<h2 id="dash-referring-domains" class="text-base md:text-2xl font-black tabular">--</h2>
+<span id="dash-referring-domains-change" class="text-[9px] font-medium text-tertiary tabular"></span>
+</div>
+<!-- KPI 6 -->
+<div class="bg-surface-container p-2.5 md:p-5 rounded-lg border-l-[3px] border-secondary shadow-lg shadow-black/10">
+<p class="text-[8px] md:text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-0.5">Health</p>
+<h2 id="dash-site-health" class="text-base md:text-2xl font-black tabular text-secondary">--%</h2>
+</div>
+</section>
+<!-- Main Data Section -->
+<div class="flex flex-col gap-4 md:flex-row md:gap-8">
+<!-- Left Column (60%) -->
+<div class="w-full md:w-3/5 space-y-4 md:space-y-8">
+<!-- Trend Chart Container -->
+<div class="bg-surface-container p-2.5 md:p-6 rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-2 md:mb-6">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface">Organic Keywords Trend</h3>
+<div class="flex gap-2">
+<button class="px-2 py-1 text-[10px] rounded bg-surface-container-high border border-outline-variant/30 text-on-surface-variant">6M</button>
+<button class="px-2 py-1 text-[10px] rounded hover:bg-surface-container-high text-on-surface-variant/60">1Y</button>
+</div>
+</div>
+<div id="chart-overview-trend" class="w-full" style="min-height:200px"></div>
+</div>
+<!-- Top 10 Keywords Table -->
+<div class="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10">
+<div class="px-3 py-2.5 md:p-5 border-b border-outline-variant/10">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface">Top 10 Keywords</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left" style="min-width:400px">
+<thead class="bg-surface-container-high/50 text-[9px] md:text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+<tr>
+<th class="px-2.5 md:px-6 py-2 md:py-3">Keyword</th>
+<th class="px-2 md:px-6 py-2 md:py-3 text-right">Pos</th>
+<th class="px-2 md:px-6 py-2 md:py-3 text-right">Vol</th>
+<th class="px-2 md:px-6 py-2 md:py-3 text-right">Traffic</th>
+<th class="px-2 md:px-6 py-2 md:py-3 text-center">Trend</th>
+</tr>
+</thead>
+<tbody id="dash-top-keywords-body" class="divide-y divide-outline-variant/5 text-[11px] md:text-sm">
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column (40%) -->
+<div class="w-full md:w-2/5 space-y-4 md:space-y-8">
+<!-- Traffic by Country -->
+<div class="bg-surface-container p-3 md:p-6 rounded-xl border border-outline-variant/10">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface mb-2 md:mb-6">Traffic by Country</h3>
+<div id="dash-traffic-country" class="space-y-4">
+<div class="text-center text-xs text-on-surface-variant py-4">No data yet</div>
+</div>
+</div>
+<!-- Backlink Profile -->
+<div class="bg-surface-container p-3 md:p-6 rounded-xl border border-outline-variant/10">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface mb-2 md:mb-6">Backlink Profile</h3>
+<div class="flex items-center gap-4 md:gap-8">
+<div class="relative w-20 h-20 md:w-32 md:h-32 flex-shrink-0">
+<svg class="w-full h-full" viewbox="0 0 36 36">
+<path id="dash-bl-donut-dofollow" class="text-primary-container" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-width="4"></path>
+<path id="dash-bl-donut-nofollow" class="text-secondary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-dashoffset="0" stroke-width="4"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center tabular">
+<span id="dash-backlinks-total" class="text-sm md:text-xl font-black">--</span>
+<span class="text-[7px] md:text-[8px] text-on-surface-variant uppercase font-bold">Total</span>
+</div>
+</div>
+<div class="flex-1 space-y-2 md:space-y-3">
+<div class="flex items-center justify-between text-[11px] md:text-xs font-medium">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+<span class="text-on-surface-variant">Dofollow</span>
+</div>
+<span id="dash-backlinks-dofollow" class="text-on-surface tabular">--%</span>
+</div>
+<div class="flex items-center justify-between text-[11px] md:text-xs font-medium">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-on-surface-variant">Nofollow</span>
+</div>
+<span id="dash-backlinks-nofollow" class="text-on-surface tabular">--%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Site Health Radial -->
+<div class="bg-surface-container p-3 md:p-6 rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-2 md:mb-6">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface">Site Health</h3>
+<span id="dash-health-pct" class="text-xs font-bold text-secondary tabular">-- Health</span>
+</div>
+<div class="flex flex-col items-center gap-6">
+<div class="w-32 h-16 relative overflow-hidden">
+<div class="radial-gauge w-32 h-32 rounded-full"></div>
+<div id="dash-health-score" class="absolute bottom-0 left-1/2 -translate-x-1/2 text-2xl font-black tabular">--</div>
+</div>
+<div class="w-full grid grid-cols-3 gap-2">
+<div class="text-center p-2 rounded bg-surface-container-high/40">
+<p class="text-[8px] text-on-surface-variant uppercase font-bold mb-1">Critical</p>
+<p id="dash-health-critical" class="text-sm font-black tabular text-on-surface">--</p>
+</div>
+<div class="text-center p-2 rounded bg-surface-container-high/40">
+<p class="text-[8px] text-on-surface-variant uppercase font-bold mb-1">Warning</p>
+<p id="dash-health-warning" class="text-sm font-black tabular text-on-surface">--</p>
+</div>
+<div class="text-center p-2 rounded bg-surface-container-high/40">
+<p class="text-[8px] text-on-surface-variant uppercase font-bold mb-1">Notice</p>
+<p id="dash-health-notice" class="text-sm font-black tabular text-on-surface">--</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Competitor Comparison Table -->
+<section class="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10">
+<div class="px-3 py-2.5 md:p-5 border-b border-outline-variant/10 flex justify-between items-center">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface">Competitor Comparison</h3>
+<button class="text-[10px] font-bold text-primary uppercase flex items-center gap-1">
+                        View Details
+                        <span class="material-symbols-outlined text-[14px]" data-icon="open_in_new">open_in_new</span>
+</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left" style="min-width:400px">
+<thead class="bg-surface-container-high/30 text-[9px] md:text-[10px] uppercase tracking-wider text-on-surface-variant font-bold">
+<tr>
+<th class="px-2.5 md:px-6 py-2 md:py-4">Domain</th>
+<th class="px-2 md:px-6 py-2 md:py-4 text-right">Keywords</th>
+<th class="px-2 md:px-6 py-2 md:py-4 text-right">Traffic</th>
+<th class="px-2 md:px-6 py-2 md:py-4 text-right">Links</th>
+<th class="px-2 md:px-6 py-2 md:py-4 text-right">Overlap</th>
+</tr>
+</thead>
+<tbody id="dash-competitors-body" class="divide-y divide-outline-variant/5 text-[11px] md:text-sm">
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- Report History -->
+<section class="bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10">
+<div class="px-3 py-2.5 md:p-5 border-b border-outline-variant/10 flex justify-between items-center flex-wrap gap-2">
+<h3 class="text-xs md:text-sm font-bold uppercase tracking-widest text-on-surface">SEO Reports</h3>
+<button id="create-report-btn-dash" onclick="generateSEOReport(this)" class="inline-flex items-center gap-1.5 bg-primary text-on-primary font-bold text-xs px-4 py-2 rounded-lg hover:opacity-90 transition-opacity min-h-[44px]">
+  <span class="material-symbols-outlined text-[16px]">summarize</span>
+  Create Report
+</button>
+</div>
+<div id="report-history-list" style="padding:16px">
+  <div style="text-align:center;color:#64687a;font-size:13px;padding:20px">Loading reports...</div>
+</div>
+</section>
+
+</div>
+</div>
+
+
+<div id="view-domain" class="view-panel" >
+<!-- TopAppBar -->
+
+<!-- Dashboard Body -->
+<div class="space-y-4 md:space-y-8">
+<!-- Page Header Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<div class="flex items-center space-x-2 text-on-surface-variant mb-1">
+<span class="text-xs font-bold uppercase tracking-[0.2em]">Domain Architecture</span>
+<span class="w-1 h-1 bg-outline-variant rounded-full"></span>
+<span class="text-xs font-medium">Worldwide</span>
+</div>
+<h2 id="domain-name" class="text-2xl md:text-4xl font-extrabold tracking-tighter text-on-surface">--</h2>
+</div>
+<div class="flex items-center gap-2">
+<span id="last-updated-domain" class="px-3 py-1 bg-surface-container rounded text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border border-outline-variant/10">Last Crawl: --</span>
+<button id="domain-refresh-btn" onclick="refreshDomainAnalysis()" class="px-3 py-1 bg-secondary/10 rounded text-[10px] font-bold text-secondary uppercase tracking-widest border border-secondary/20 hover:bg-secondary/20 transition-colors cursor-pointer">Refresh (~$0.09)</button>
+</div>
+</div>
+<!-- Metrics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<!-- Authority Score -->
+<div class="bg-surface-container rounded-xl p-4 md:p-6 flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Authority Score</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">info</span>
+</div>
+<div class="mt-4">
+<div id="domain-authority-val" class="text-5xl font-black tabular-nums tracking-tighter">--</div>
+<div class="flex items-center mt-1 text-secondary text-xs font-medium">
+<span class="material-symbols-outlined text-sm mr-1">trending_up</span>
+<span id="domain-authority-change"></span>
+</div>
+</div>
+</div>
+<!-- Organic Traffic -->
+<div class="bg-surface-container rounded-xl p-4 md:p-6 flex flex-col justify-between h-40 relative overflow-hidden">
+<div class="flex justify-between items-start z-10">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Organic Traffic</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">show_chart</span>
+</div>
+<div class="mt-4 z-10">
+<div id="domain-organic-val" class="text-2xl md:text-4xl font-black tabular-nums tracking-tighter">--</div>
+<div class="text-[10px] text-on-surface-variant mt-1 uppercase tracking-widest">Avg. Monthly Visits</div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-16 opacity-30">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 400 100">
+<path d="M0,80 L40,75 L80,85 L120,60 L160,70 L200,45 L240,55 L280,30 L320,40 L360,10 L400,20 L400,100 L0,100 Z" fill="url(#grad1)"></path>
+<defs>
+<lineargradient id="grad1" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" style="stop-color:#adc6ff;stop-opacity:1"></stop>
+<stop offset="100%" style="stop-color:#adc6ff;stop-opacity:0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,80 L40,75 L80,85 L120,60 L160,70 L200,45 L240,55 L280,30 L320,40 L360,10 L400,20" fill="none" stroke="#adc6ff" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+<!-- Paid Traffic -->
+<div class="bg-surface-container rounded-xl p-4 md:p-6 flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Paid Search</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">paid</span>
+</div>
+<div class="mt-4">
+<div id="domain-paid-val" class="text-2xl md:text-4xl font-black tabular-nums tracking-tighter">--</div>
+<div class="flex items-center mt-1 text-tertiary text-xs font-medium">
+<span class="material-symbols-outlined text-sm mr-1">trending_down</span>
+<span id="domain-paid-change"></span>
+</div>
+</div>
+</div>
+<!-- Backlinks -->
+<div class="bg-surface-container rounded-xl p-4 md:p-6 flex flex-col justify-between h-40">
+<div class="flex justify-between items-start">
+<span class="text-xs font-bold text-on-surface-variant uppercase tracking-widest">Total Backlinks</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg">link</span>
+</div>
+<div class="mt-4">
+<div id="domain-backlinks-val" class="text-2xl md:text-4xl font-black tabular-nums tracking-tighter">--</div>
+<div id="domain-backlinks-sub" class="text-[10px] text-on-surface-variant mt-1 uppercase tracking-widest"></div>
+</div>
+</div>
+</div>
+<!-- Main Analytical Section: Bento Grid -->
+<div class="grid grid-cols-12 gap-4">
+<!-- Traffic Trend Chart -->
+<div class="col-span-12 lg:col-span-8 bg-surface-container rounded-xl p-4 md:p-8">
+<div class="flex justify-between items-center mb-10">
+<div>
+<h3 class="text-lg font-bold tracking-tight">Organic Traffic Trend</h3>
+<p class="text-xs text-on-surface-variant mt-1">6-month aggregate trajectory</p>
+</div>
+<div class="flex bg-surface-container-high rounded p-0.5">
+<button class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-primary text-on-primary rounded">6M</button>
+<button class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">1Y</button>
+<button class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">All</button>
+</div>
+</div>
+<div id="chart-domain-traffic" class="w-full" style="min-height:300px"></div>
+</div>
+<!-- Competitors Panel -->
+<div class="col-span-12 lg:col-span-4 bg-surface-container rounded-xl p-4 md:p-8 flex flex-col">
+<h3 class="text-lg font-bold tracking-tight mb-3 md:mb-6">Main Competitors</h3>
+<div id="domain-competitors-list" class="space-y-6 flex-1">
+<div class="text-center text-xs text-on-surface-variant py-8">No data yet</div>
+</div>
+<button class="w-full mt-8 py-3 bg-surface-container-highest rounded-lg text-on-surface font-bold text-[10px] uppercase tracking-widest hover:bg-surface-container-high transition-colors">View All Competitors</button>
+</div>
+<!-- Technology Stack -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container rounded-xl p-4 md:p-8">
+<h3 class="text-lg font-bold tracking-tight mb-4">Technology Stack</h3>
+<div data-tech-stack class="space-y-0">
+<div class="text-center text-xs text-on-surface-variant py-4">No data yet</div>
+</div>
+</div>
+<!-- WHOIS -->
+<div class="col-span-12 lg:col-span-6 bg-surface-container rounded-xl p-4 md:p-8">
+<h3 class="text-lg font-bold tracking-tight mb-4">Domain Registration</h3>
+<div data-whois class="space-y-0">
+<div class="text-center text-xs text-on-surface-variant py-4">No data yet</div>
+</div>
+</div>
+<!-- Subdomains -->
+<div id="domain-subdomains" class="col-span-12 lg:col-span-6">
+<div class="bg-surface-container rounded-xl p-4 md:p-8">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+<div>
+<h3 class="text-lg font-bold tracking-tight">Subdomains</h3>
+<p class="text-xs text-on-surface-variant mt-1">Subdomains with organic visibility</p>
+</div>
+<button onclick="fetchSubdomains(this)" style="padding:8px 14px;font-size:11px;font-weight:700;color:#adc6ff;background:rgba(173,198,255,0.08);border:1px solid rgba(173,198,255,0.15);border-radius:8px;cursor:pointer;white-space:nowrap;min-height:44px">Fetch Subdomains (~$0.01)</button>
+</div>
+<div id="domain-subdomains-list">
+<div style="padding:16px;text-align:center;color:#64687a;font-size:12px">Click "Fetch Subdomains" to discover subdomains</div>
+</div>
+</div>
+</div>
+<!-- Top Pages by Traffic -->
+<div class="col-span-12 bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-4 md:p-8 pb-4 flex justify-between items-end">
+<div>
+<h3 class="text-lg font-bold tracking-tight">Top Pages by Traffic</h3>
+<p class="text-xs text-on-surface-variant mt-1">Which URLs drive the most organic traffic</p>
+</div>
+<button onclick="fetchTopPages(this)" class="text-[10px] font-bold text-primary uppercase tracking-[0.1em] flex items-center gap-1 hover:text-on-surface transition-colors" style="min-height:32px">
+<span class="material-symbols-outlined text-sm">refresh</span> Fetch (~$0.01)
+</button>
+</div>
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest border-y border-outline-variant/10">
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Page URL</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">Keywords</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">Est. Traffic</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right hidden md:table-cell">Traffic Value</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right hidden md:table-cell">Backlinks</th>
+</tr>
+</thead>
+<tbody id="domain-top-pages-body" class="divide-y divide-outline-variant/10">
+<tr><td colspan="5" style="padding:40px;text-align:center;color:#8c909f;font-size:13px">Click "Fetch" to load top pages data (~$0.01)</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Top Organic Keywords Table -->
+<div class="col-span-12 bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-4 md:p-8 pb-4 flex justify-between items-end">
+<div>
+<h3 class="text-lg font-bold tracking-tight">Top Organic Keywords</h3>
+<p class="text-xs text-on-surface-variant mt-1">Highest traffic generators</p>
+</div>
+<button class="text-[10px] font-bold text-primary uppercase tracking-[0.1em] flex items-center">
+                            Export CSV <span class="material-symbols-outlined text-sm ml-1">download</span>
+</button>
+</div>
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-lowest border-y border-outline-variant/10">
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Keyword</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Intent</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-center">Pos.</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">Volume</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">KD%</th>
+<th class="py-4 px-4 md:px-8 text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant text-right">CPC (USD)</th>
+</tr>
+</thead>
+<tbody id="domain-keywords-body" class="divide-y divide-outline-variant/10">
+</tbody>
+</table>
+</div>
+<div id="domain-kw-pagination" class="p-4 md:p-6 flex items-center justify-between border-t border-outline-variant/10">
+<span id="domain-kw-page-info" class="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest"></span>
+<div class="flex gap-2">
+<button onclick="domainKwPagePrev()" id="domain-kw-prev" class="px-3 py-1.5 rounded bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-primary transition-colors disabled:opacity-30" disabled>Prev</button>
+<button onclick="domainKwPageNext()" id="domain-kw-next" class="px-3 py-1.5 rounded bg-surface-container-high text-xs font-bold text-on-surface-variant hover:text-primary transition-colors disabled:opacity-30" disabled>Next</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sticky Status Footer -->
+<footer class="mt-auto h-8 bg-surface-container-lowest border-t border-outline-variant/10 rounded-lg px-4 md:px-8 flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+<div class="flex items-center space-x-6">
+<div class="flex items-center">
+<span class="w-2 h-2 rounded-full bg-secondary mr-2"></span>
+                    API Connected
+                </div>
+<div>Global Database</div>
+</div>
+<div>Refreshed: --</div>
+</footer>
+</div>
+
+
+<div id="view-position" class="view-panel" >
+<!-- TopAppBar -->
+
+<!-- Canvas -->
+<div class="space-y-4 md:space-y-8">
+<!-- Page Header -->
+<div>
+<h2 class="text-xl md:text-3xl font-bold tracking-tight text-on-surface mb-1">Position Tracking</h2>
+<p class="text-on-surface-variant text-xs md:text-sm mb-3">Real-time keyword performance analysis</p>
+<div class="flex flex-wrap gap-2">
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-low border border-outline-variant/10 rounded-lg text-xs font-medium hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-base" data-icon="file_download">file_download</span> Export
+</button>
+<button class="flex items-center gap-1 px-3 py-1.5 bg-surface-container-low border border-outline-variant/10 rounded-lg text-xs font-medium hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-base" data-icon="add">add</span> Add Keywords
+</button>
+</div>
+</div>
+<!-- Tracked Keywords Panel -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
+<div onclick="toggleTrackedPanel(this)" class="p-4 flex items-center justify-between cursor-pointer hover:bg-surface-container/30 transition-colors select-none">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;font-size:18px">star</span>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Tracked Keywords</h3>
+<p class="text-[10px] text-on-surface-variant">Keywords you're actively monitoring — <span id="tracked-kw-count">0</span> tracked</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant tracked-panel-chevron" style="transition:transform 200ms">expand_more</span>
+</div>
+<div id="tracked-kw-panel" style="display:none">
+<div class="px-4 pb-3 flex flex-wrap gap-2 items-center">
+<input id="tracked-kw-input" type="text" placeholder="Add keywords (comma-separated)..." class="flex-1 bg-surface-container border-none rounded-lg px-3 py-2 text-xs text-on-surface focus:ring-1 focus:ring-primary/40 min-w-[200px]" style="font-size:16px" onkeydown="if(event.key==='Enter')addTrackedKeywords()"/>
+<button onclick="addTrackedKeywords()" class="bg-primary text-on-primary font-bold text-xs px-4 py-2 rounded-lg hover:opacity-90 transition-opacity min-h-[44px]">Add</button>
+</div>
+<div id="tracked-kw-list" class="px-4 pb-4">
+<div style="text-align:center;color:#64687a;font-size:12px;padding:12px">Loading tracked keywords...</div>
+</div>
+</div>
+</div>
+<!-- KPI Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Visibility -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-primary">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Visibility %</span>
+<span id="pos-visibility-change" class="text-secondary flex items-center gap-1 text-xs font-bold">
+                        </span>
+</div>
+<div class="flex items-baseline gap-2 mb-2">
+<span id="pos-visibility-val" class="text-2xl md:text-4xl font-extrabold tabular-nums text-on-surface">--%</span>
+</div>
+<div class="w-full h-1 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 0%"></div>
+</div>
+</div>
+<!-- Estimated Traffic -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-secondary">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Est. Traffic</span>
+<span id="pos-traffic-change" class="text-secondary flex items-center gap-1 text-xs font-bold">
+                        </span>
+</div>
+<div class="flex items-baseline gap-2 mb-2">
+<span id="pos-traffic-val" class="text-2xl md:text-4xl font-extrabold tabular-nums text-on-surface">--</span>
+</div>
+<div class="w-full h-[1.5px] bg-secondary/20 relative">
+<div class="absolute inset-0 bg-gradient-to-r from-transparent via-secondary to-transparent opacity-40"></div>
+</div>
+</div>
+<!-- Avg Position -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-outline">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Avg. Position</span>
+<span id="pos-avgpos-change" class="text-tertiary flex items-center gap-1 text-xs font-bold">
+                        </span>
+</div>
+<div class="flex items-baseline gap-2 mb-2">
+<span id="pos-avgpos-val" class="text-2xl md:text-4xl font-extrabold tabular-nums text-on-surface">--</span>
+</div>
+<div class="flex gap-1 h-1">
+<div class="flex-1 bg-secondary rounded-full"></div>
+<div class="flex-1 bg-secondary rounded-full"></div>
+<div class="flex-1 bg-surface-container-highest rounded-full"></div>
+<div class="flex-1 bg-surface-container-highest rounded-full"></div>
+</div>
+</div>
+<!-- Top 3 -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-amber-500">
+<div class="flex justify-between items-start mb-4">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Top 3 Keywords</span>
+<span id="pos-top3-change" class="text-secondary flex items-center gap-1 text-xs font-bold">
+                        </span>
+</div>
+<div class="flex items-baseline gap-2 mb-2">
+<span id="pos-top3-val" class="text-2xl md:text-4xl font-extrabold tabular-nums text-on-surface">--</span>
+</div>
+<div id="pos-top3-sub" class="text-[10px] text-on-surface-variant font-medium"></div>
+</div>
+</div>
+<!-- Rank History Trend Chart -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border border-outline-variant/10">
+<div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+<div>
+<h3 class="text-sm font-bold text-on-surface">Ranking Trend Overview</h3>
+<p class="text-[10px] text-on-surface-variant mt-1">Keyword count by position bucket over time — shows how rankings shift</p>
+</div>
+<button onclick="fetchRankHistory(this)" class="text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1 hover:text-on-surface transition-colors px-3 py-1.5 border border-outline-variant/10 rounded-lg min-h-[32px]">
+<span class="material-symbols-outlined text-sm">history</span> Fetch History (~$0.10)
+</button>
+</div>
+<div id="chart-rank-history" style="min-height:220px">
+<div style="padding:40px;text-align:center;color:#64687a;font-size:13px">
+Rank history shows how your position distribution changes over time.<br/>
+<span style="font-size:11px">Uses historical data from past refreshes. Click "Fetch History" for deeper DataForSEO data ($0.10).</span>
+</div>
+</div>
+</div>
+
+<!-- Main Analysis Area -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Rankings Distribution Chart -->
+<div class="lg:col-span-1 bg-surface-container-low p-4 md:p-6 rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center mb-4 md:mb-8">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface">Rankings Distribution</h3>
+<span class="material-symbols-outlined text-on-surface-variant text-lg" data-icon="info">info</span>
+</div>
+<div class="space-y-6">
+<!-- Bar 1-3 (Gold) -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs font-semibold text-on-surface-variant">Pos. #1 - 3</span>
+<span id="pos-dist-top3" class="text-sm font-bold tabular-nums text-amber-500">-- <span class="text-[10px] text-on-surface-variant font-normal"></span></span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-amber-500" style="width: 0%"></div>
+</div>
+</div>
+<!-- Bar 4-10 (Green) -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs font-semibold text-on-surface-variant">Pos. #4 - 10</span>
+<span id="pos-dist-4to10" class="text-sm font-bold tabular-nums text-secondary">-- <span class="text-[10px] text-on-surface-variant font-normal"></span></span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 0%"></div>
+</div>
+</div>
+<!-- Bar 11-20 (Blue) -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs font-semibold text-on-surface-variant">Pos. #11 - 20</span>
+<span id="pos-dist-11to20" class="text-sm font-bold tabular-nums text-primary">-- <span class="text-[10px] text-on-surface-variant font-normal"></span></span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 0%"></div>
+</div>
+</div>
+<!-- Bar 21-100 (Gray) -->
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-xs font-semibold text-on-surface-variant">Pos. #21 - 100</span>
+<span id="pos-dist-21to100" class="text-sm font-bold tabular-nums text-on-surface-variant">-- <span class="text-[10px] text-on-surface-variant font-normal"></span></span>
+</div>
+<div class="h-2 bg-surface-container rounded-full overflow-hidden">
+<div class="h-full bg-outline-variant" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<div class="mt-10 p-4 bg-surface-container rounded-lg">
+<div class="flex items-center gap-3 text-xs text-on-surface-variant leading-relaxed">
+<span class="material-symbols-outlined text-secondary" data-icon="auto_awesome">auto_awesome</span>
+<p>Select a project and refresh to see ranking distribution insights.</p>
+</div>
+</div>
+</div>
+<!-- Keyword Table Area -->
+<div class="lg:col-span-2 bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden flex flex-col">
+<div class="p-4 md:p-6 border-b border-outline-variant/10 flex justify-between items-center">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface">Top Keywords</h3>
+<div class="flex gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant" data-icon="search">search</span>
+<input class="bg-surface-container-highest border-none text-xs rounded-lg pl-9 py-2 focus:ring-1 focus:ring-primary/40 w-28 md:w-48" placeholder="Filter..." type="text"/>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto flex-1">
+<table class="w-full text-left border-separate border-spacing-0">
+<thead>
+<tr class="bg-surface-container/50">
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Keyword</th>
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Pos</th>
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">+/-</th>
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant hidden md:table-cell">URL</th>
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Vol</th>
+<th class="px-2 md:px-6 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant hidden md:table-cell">Vis %</th>
+</tr>
+</thead>
+<tbody id="pos-keywords-body" class="divide-y divide-outline-variant/5">
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="p-4 border-t border-outline-variant/10 flex justify-between items-center text-xs text-on-surface-variant">
+<span>Showing 0 keywords</span>
+<div class="flex gap-2">
+<button onclick="exportPosData()" class="px-3 py-1 bg-surface-container-highest rounded border border-outline-variant/20 hover:text-on-surface transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-sm">download</span>CSV</button>
+<button id="pos-prev-btn" onclick="posTablePage(-1)" class="px-3 py-1 bg-surface-container-highest rounded border border-outline-variant/20 hover:text-on-surface transition-colors">Previous</button>
+<button id="pos-next-btn" onclick="posTablePage(1)" class="px-3 py-1 bg-surface-container-highest rounded border border-outline-variant/20 hover:text-on-surface transition-colors">Next</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Contextual Insights Section (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+<div class="p-4 md:p-6 bg-surface-container rounded-xl border border-outline-variant/10 flex flex-col justify-between">
+<div>
+<div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-primary" data-icon="insights">insights</span>
+</div>
+<h4 class="text-on-surface font-bold text-lg mb-2">Winning Trends</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Refresh data to see winning trend insights.</p>
+</div>
+<a class="mt-4 text-xs font-bold text-primary flex items-center gap-1 hover:underline" href="#">View report <span class="material-symbols-outlined text-[14px]" data-icon="arrow_forward">arrow_forward</span></a>
+</div>
+<div class="p-4 md:p-6 bg-surface-container rounded-xl border border-outline-variant/10 flex flex-col justify-between">
+<div>
+<div class="w-10 h-10 rounded-lg bg-tertiary/10 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="warning">warning</span>
+</div>
+<h4 class="text-on-surface font-bold text-lg mb-2">Cannibalization Risk</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Refresh data to check for keyword cannibalization risks.</p>
+</div>
+<a class="mt-4 text-xs font-bold text-primary flex items-center gap-1 hover:underline" href="#">Fix now <span class="material-symbols-outlined text-[14px]" data-icon="arrow_forward">arrow_forward</span></a>
+</div>
+<div class="p-4 md:p-6 bg-surface-container rounded-xl border border-outline-variant/10 flex flex-col justify-between relative overflow-hidden">
+<div class="absolute -right-4 -bottom-4 opacity-10">
+<span class="material-symbols-outlined text-9xl" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<div>
+<div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-secondary" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<h4 class="text-on-surface font-bold text-lg mb-2">Market Volatility</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">Refresh data to see market volatility insights.</p>
+</div>
+<a class="mt-4 text-xs font-bold text-primary flex items-center gap-1 hover:underline" href="#">Sensor history <span class="material-symbols-outlined text-[14px]" data-icon="arrow_forward">arrow_forward</span></a>
+</div>
+</div>
+</div>
+</div>
+
+
+<div id="view-keywords" class="view-panel" >
+<!-- Search & Control Header -->
+<div class="mb-10">
+<div class="mb-4 md:mb-8">
+<h2 class="text-xl md:text-3xl font-bold tracking-tight text-on-surface mb-1">Keyword Magic Tool</h2>
+<p class="text-on-surface-variant text-xs md:text-sm mb-3">Discover and analyze 24B+ keyword opportunities across global markets.</p>
+<div class="flex flex-wrap gap-2">
+<div class="flex items-center bg-surface-container rounded px-2 py-1.5 border border-outline-variant/10">
+<span class="material-symbols-outlined text-on-surface-variant text-base mr-1" data-icon="language">language</span>
+<select class="bg-transparent border-none text-xs text-on-surface focus:ring-0 appearance-none pr-4 cursor-pointer">
+<option>English</option>
+<option>Spanish</option>
+<option>German</option>
+</select>
+</div>
+<div class="flex items-center bg-surface-container rounded px-2 py-1.5 border border-outline-variant/10">
+<span class="material-symbols-outlined text-on-surface-variant text-base mr-1" data-icon="location_on">location_on</span>
+<select class="bg-transparent border-none text-xs text-on-surface focus:ring-0 appearance-none pr-4 cursor-pointer">
+<option>United States</option>
+<option>United Kingdom</option>
+<option>Canada</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Research Mode Selector -->
+<div class="flex flex-wrap gap-2 mb-3">
+<button onclick="setKwResearchMode('suggestions',this)" class="kw-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-on-primary transition-all" data-mode="suggestions">Suggestions</button>
+<button onclick="setKwResearchMode('ideas',this)" class="kw-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant bg-surface-container border border-outline-variant/10 transition-all" data-mode="ideas">Keyword Ideas</button>
+<button onclick="setKwResearchMode('related',this)" class="kw-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant bg-surface-container border border-outline-variant/10 transition-all" data-mode="related">Related / Clusters</button>
+<button onclick="setKwResearchMode('categories',this)" class="kw-mode-btn px-3 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant bg-surface-container border border-outline-variant/10 transition-all" data-mode="categories">By Category</button>
+</div>
+<div class="flex items-center gap-4 bg-surface-container-low p-2 rounded-xl">
+<div class="flex-1 relative">
+<input class="w-full bg-surface-container border-none rounded-lg px-4 py-4 text-lg font-medium text-on-surface focus:ring-1 focus:ring-primary/40" type="text" placeholder="Enter a keyword to research..." value=""/>
+</div>
+<button class="bg-primary text-on-primary-container font-bold px-4 md:px-8 py-4 rounded-lg hover:brightness-110 transition-all">Search</button>
+</div>
+</div>
+<button onclick="document.getElementById('kw-filters').classList.toggle('hidden')" class="md:hidden flex items-center gap-2 mb-3 px-3 py-2 bg-surface-container rounded-lg text-xs font-medium text-on-surface-variant border border-outline-variant/10">
+<span class="material-symbols-outlined text-sm">tune</span> Filters & Clusters
+</button>
+<div class="flex flex-col gap-4">
+<!-- Filters Row (collapsible) -->
+<aside id="kw-filters" class="hidden md:flex w-full gap-4 flex-wrap">
+<div class="bg-surface-container rounded-xl p-5 flex-1 min-w-[250px]">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Metric Filters</h3>
+<div class="space-y-6">
+<div>
+<label class="block text-xs font-medium text-on-surface/80 mb-2">Volume</label>
+<div class="grid grid-cols-2 gap-2">
+<input id="kwm-vol-min" class="bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="From" type="number" oninput="applyKwFilters()"/>
+<input id="kwm-vol-max" class="bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="To" type="number" oninput="applyKwFilters()"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-medium text-on-surface/80 mb-2">KD % (Difficulty)</label>
+<div class="px-1">
+<input id="kwm-kd-min" type="range" min="0" max="100" value="0" class="w-full h-1 bg-surface-container-highest rounded-full appearance-none cursor-pointer accent-primary" style="margin-bottom:4px" oninput="document.getElementById('kwm-kd-min-val').textContent=this.value+'%'; applyKwFilters()">
+<input id="kwm-kd-max" type="range" min="0" max="100" value="100" class="w-full h-1 bg-surface-container-highest rounded-full appearance-none cursor-pointer accent-primary" oninput="document.getElementById('kwm-kd-max-val').textContent=this.value+'%'; applyKwFilters()">
+<div class="flex justify-between text-[10px] text-on-surface-variant tabular-nums mt-1">
+<span id="kwm-kd-min-val">0%</span>
+<span id="kwm-kd-max-val">100%</span>
+</div>
+</div>
+</div>
+<div>
+<label class="block text-xs font-medium text-on-surface/80 mb-2">CPC ($)</label>
+<div class="grid grid-cols-2 gap-2">
+<input id="kwm-cpc-min" class="bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="Min" type="number" step="0.01" oninput="applyKwFilters()"/>
+<input id="kwm-cpc-max" class="bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="Max" type="number" step="0.01" oninput="applyKwFilters()"/>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant/20">
+<label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Keywords</label>
+<div class="space-y-3">
+<div class="space-y-2">
+<span class="text-[10px] text-on-surface-variant">Include Keywords</span>
+<input id="kwm-include" class="w-full bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="Add terms..." type="text" oninput="applyKwFilters()"/>
+</div>
+<div class="space-y-2">
+<span class="text-[10px] text-on-surface-variant">Exclude Keywords</span>
+<input id="kwm-exclude" class="w-full bg-surface-container-highest border-none rounded p-2 text-xs text-on-surface" placeholder="Add terms..." type="text" oninput="applyKwFilters()"/>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-5 border border-outline-variant/5 flex-1 min-w-[250px]">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Quick Clusters</h3>
+<div id="kwm-clusters" class="space-y-2">
+<div class="text-[10px] text-on-surface-variant text-center py-3">Search to discover keyword clusters</div>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-5 border border-outline-variant/5 flex-1 min-w-[250px]">
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Trending Searches</h3>
+<div id="kwm-trending-searches" class="flex flex-wrap gap-2">
+<div class="text-[10px] text-on-surface-variant text-center py-3 w-full">Search a keyword to see trending related queries</div>
+</div>
+</div>
+</aside>
+<!-- Table Section (full width) -->
+<div class="w-full">
+<!-- Tab Bar -->
+<div class="flex items-center border-b border-outline-variant/10 mb-3 md:mb-6 overflow-x-auto" style="-webkit-overflow-scrolling:touch;">
+<button onclick="switchKwTab(this,'all')" class="kw-tab py-3 px-3 text-xs md:text-sm font-bold border-b-2 border-primary text-primary whitespace-nowrap">All</button>
+<button onclick="switchKwTab(this,'questions')" class="kw-tab py-3 px-3 text-xs md:text-sm font-medium text-on-surface-variant hover:text-on-surface whitespace-nowrap">Questions</button>
+<button onclick="switchKwTab(this,'broad')" class="kw-tab py-3 px-3 text-xs md:text-sm font-medium text-on-surface-variant hover:text-on-surface whitespace-nowrap">Broad</button>
+<button onclick="switchKwTab(this,'phrase')" class="kw-tab py-3 px-3 text-xs md:text-sm font-medium text-on-surface-variant hover:text-on-surface whitespace-nowrap">Phrase</button>
+<button onclick="switchKwTab(this,'exact')" class="kw-tab py-3 px-3 text-xs md:text-sm font-medium text-on-surface-variant hover:text-on-surface whitespace-nowrap">Exact</button>
+<div class="ml-auto hidden md:flex items-center gap-4 pb-1 shrink-0 pl-4">
+<span class="text-xs text-on-surface-variant">Keywords: <span class="text-on-surface font-bold tabular-nums">--</span></span>
+<span class="text-xs text-on-surface-variant">Total Vol: <span class="text-on-surface font-bold tabular-nums">--</span></span>
+<button onclick="exportKwData()" class="flex items-center gap-1 text-[10px] font-bold text-primary uppercase tracking-wider hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-sm">download</span>CSV</button>
+</div>
+</div>
+<!-- Table Content -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container/50">
+<tr>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Keyword</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant hidden md:table-cell">Intent</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Vol</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-center hidden md:table-cell">Trend</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">KD</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-right">CPC</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-center hidden md:table-cell">Comp</th>
+<th class="px-2 md:px-4 py-3 text-[9px] md:text-[10px] font-bold uppercase tracking-wider text-on-surface-variant text-center hidden md:table-cell">SERP</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between mt-8 text-on-surface-variant">
+<div class="text-xs">
+                        Showing <span class="text-on-surface font-bold">0</span> keywords
+                    </div>
+<div class="flex items-center gap-1">
+<button class="p-2 hover:bg-surface-container rounded transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center bg-primary text-on-primary-container font-bold rounded text-xs">1</button>
+<button class="w-8 h-8 flex items-center justify-center hover:bg-surface-container rounded text-xs transition-colors">2</button>
+<button class="w-8 h-8 flex items-center justify-center hover:bg-surface-container rounded text-xs transition-colors">3</button>
+<span class="px-2">...</span>
+<button class="w-8 h-8 flex items-center justify-center hover:bg-surface-container rounded text-xs transition-colors">--</button>
+<button class="p-2 hover:bg-surface-container rounded transition-colors">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<div id="view-keyword-overview" class="view-panel" >
+<!-- Keyword Overview Header Section -->
+<section class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-4 md:mb-8">
+<!-- Main Identifier Card -->
+<div class="lg:col-span-2 bg-surface-container-low p-4 md:p-6 rounded-xl relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4">
+<span id="kwov-intent" class="bg-primary/10 text-primary text-[10px] font-extrabold px-2 py-1 rounded border border-primary/20 tracking-tighter uppercase"></span>
+</div>
+<div class="mb-3 md:mb-6">
+<h2 class="text-on-surface-variant text-xs uppercase tracking-widest font-bold mb-1">Keyword</h2>
+<h1 id="kwov-keyword" class="text-xl md:text-3xl font-black text-on-surface tracking-tight">--</h1>
+</div>
+<div class="grid grid-cols-2 gap-8">
+<div>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-1">Search Volume</p>
+<div class="flex items-baseline gap-2">
+<span id="kwov-volume-val" class="text-xl md:text-3xl font-bold tabular">--</span>
+<span id="kwov-volume-change" class="text-secondary text-xs flex items-center gap-1 font-bold"></span>
+</div>
+</div>
+<div>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-1">Est. Global Volume</p>
+<div class="flex items-baseline gap-2">
+<span id="kwov-global-val" class="text-xl font-bold tabular text-on-surface/80">--</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Difficulty Gauge Card -->
+<div class="bg-surface-container p-4 md:p-6 rounded-xl flex flex-col justify-between">
+<div>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-1">Keyword Difficulty</p>
+<div class="relative mx-auto" style="width:160px;height:90px;">
+<canvas id="gauge-kd" width="320" height="180" style="width:160px;height:90px;"></canvas>
+<div class="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
+<span id="gauge-kd-val" class="text-2xl font-black tabular-nums"></span>
+<p id="gauge-kd-label" class="text-[10px] font-bold uppercase tracking-tighter"></p>
+</div>
+</div>
+</div>
+<p id="gauge-kd-desc" class="text-on-surface-variant text-[10px] mt-3 leading-relaxed"></p>
+</div>
+<!-- Ads & Competition -->
+<div class="bg-surface-container p-4 md:p-6 rounded-xl flex flex-col justify-between">
+<div class="space-y-4">
+<div>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-1">CPC (USD)</p>
+<p id="kwov-cpc-val" class="text-2xl font-bold tabular text-secondary">--</p>
+<div id="kwov-ppc-badges" style="margin-top:6px;flex-wrap:wrap;gap:4px;display:none"></div>
+</div>
+<div>
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-1">Competition Level</p>
+<div class="flex items-center gap-3">
+<p id="kwov-competition-val" class="text-2xl font-bold tabular">--</p>
+<div class="flex-1 h-1.5 bg-outline-variant/30 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[0%]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant/20">
+<p class="text-on-surface-variant text-[10px] uppercase tracking-wider mb-2">Trend (12m)</p>
+<div class="h-8 flex items-end gap-[2px]">
+<!-- Visual representation of trend -->
+<div class="flex-1 bg-primary/20 h-[30%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/20 h-[40%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/30 h-[35%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[50%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/50 h-[65%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/60 h-[70%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[55%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/60 h-[80%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/80 h-[90%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary h-full rounded-t-sm"></div>
+<div class="flex-1 bg-primary/90 h-[95%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/80 h-[85%] rounded-t-sm"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- SERP Features Row -->
+<section class="mb-4 md:mb-8">
+<h3 class="text-on-surface-variant text-[10px] font-bold uppercase tracking-[0.2em] mb-3">SERP Features</h3>
+<div class="flex flex-wrap gap-3">
+<div class="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded text-primary">
+<span class="material-symbols-outlined text-[16px]">featured_play_list</span>
+<span class="text-[10px] font-bold uppercase tracking-tight">Featured Snippet</span>
+</div>
+<div class="flex items-center gap-2 bg-secondary/10 border border-secondary/20 px-3 py-1.5 rounded text-secondary">
+<span class="material-symbols-outlined text-[16px]">quiz</span>
+<span class="text-[10px] font-bold uppercase tracking-tight">People Also Ask</span>
+</div>
+<div class="flex items-center gap-2 bg-tertiary/10 border border-tertiary/20 px-3 py-1.5 rounded text-tertiary">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+<span class="text-[10px] font-bold uppercase tracking-tight">Local Pack</span>
+</div>
+<div class="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded text-primary">
+<span class="material-symbols-outlined text-[16px]">image</span>
+<span class="text-[10px] font-bold uppercase tracking-tight">Images</span>
+</div>
+<div class="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded text-primary">
+<span class="material-symbols-outlined text-[16px]">smart_display</span>
+<span class="text-[10px] font-bold uppercase tracking-tight">Video</span>
+</div>
+</div>
+</section>
+<!-- Google Trends Chart -->
+<section class="mb-4 md:mb-8 bg-surface-container-low rounded-xl p-4 md:p-6 border border-outline-variant/10">
+<div class="flex justify-between items-center mb-3">
+<div>
+<h3 class="text-sm font-bold text-on-surface">Google Trends</h3>
+<p class="text-[10px] text-on-surface-variant">Search interest over time from Google Trends</p>
+</div>
+</div>
+<div id="kwov-trends-chart" style="min-height:160px">
+<div style="text-align:center;padding:20px;color:#64687a;font-size:12px">Analyze a keyword to see trend data</div>
+</div>
+</section>
+<!-- YouTube Results Section -->
+<section id="kwov-youtube-section" class="mb-4 md:mb-8 bg-surface-container-low rounded-xl p-4 md:p-6 border border-outline-variant/10">
+<div class="flex justify-between items-center mb-3">
+<div>
+<h3 class="text-sm font-bold text-on-surface">YouTube Results</h3>
+<p class="text-[10px] text-on-surface-variant">Top YouTube videos ranking for this keyword</p>
+</div>
+<button id="kwov-youtube-btn" onclick="fetchYoutubeResults(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:8px 16px;border-radius:8px;font-size:11px;cursor:pointer;min-height:44px;white-space:nowrap">
+<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">smart_display</span>Fetch YouTube Results (~$0.002)</button>
+</div>
+<div id="kwov-youtube-results">
+<div style="text-align:center;padding:20px;color:#64687a;font-size:12px">Click "Fetch YouTube Results" to load video data</div>
+</div>
+</section>
+<!-- Paid Ads Section (collapsed by default) -->
+<section id="kwov-paid-ads-section" class="mb-4 md:mb-8 bg-surface-container-low rounded-xl border border-outline-variant/10 overflow-hidden">
+<div class="flex justify-between items-center p-4 md:px-6 md:py-4 cursor-pointer" onclick="togglePaidAdsSection()">
+<div>
+<h3 class="text-sm font-bold text-on-surface">Paid Ads for This Keyword</h3>
+<p class="text-[10px] text-on-surface-variant">Competitor ad copies running on Google Ads</p>
+</div>
+<div class="flex items-center gap-3">
+<button id="kwov-paid-ads-btn" onclick="event.stopPropagation();fetchPaidAds(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:8px 16px;border-radius:8px;font-size:11px;cursor:pointer;min-height:44px;white-space:nowrap">
+<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">campaign</span>Show Paid Ads (~$0.001)</button>
+<span id="kwov-paid-ads-chevron" class="material-symbols-outlined text-on-surface-variant" style="transition:transform 0.2s">expand_more</span>
+</div>
+</div>
+<div id="kwov-paid-ads-body" style="display:none;padding:0 16px 16px;md:padding:0 24px 24px">
+<div id="kwov-paid-ads-results">
+<div style="text-align:center;padding:20px;color:#64687a;font-size:12px">Click "Show Paid Ads" to load competitor ad data</div>
+</div>
+</div>
+</section>
+<!-- Main Data Tables Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column: SERP & Questions -->
+<div class="lg:col-span-7 space-y-4 md:space-y-8">
+<!-- Top 10 SERP Results -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="px-6 py-4 flex justify-between items-center border-b border-outline-variant/10">
+<h3 class="text-xs font-bold uppercase tracking-widest">Top 10 SERP Results</h3>
+<button class="text-primary text-[10px] font-bold uppercase tracking-tighter">View Full SERP</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-high/40 text-[10px] text-on-surface-variant uppercase tracking-wider">
+<th class="px-6 py-3 font-medium">Pos</th>
+<th class="px-6 py-3 font-medium">Domain &amp; URL</th>
+<th class="px-6 py-3 font-medium text-right">Backlinks</th>
+<th class="px-6 py-3 font-medium text-right">Traffic</th>
+</tr>
+</thead>
+<tbody class="text-sm">
+</tbody>
+</table>
+</div>
+</div>
+<!-- Questions Section -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden p-4 md:p-6">
+<h3 class="text-xs font-bold uppercase tracking-widest mb-3 md:mb-6">People also ask</h3>
+<div class="space-y-4">
+<div class="text-center text-xs text-on-surface-variant py-4">No data yet</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Variations & Variations -->
+<div class="lg:col-span-5">
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="px-6 py-4 flex justify-between items-center border-b border-outline-variant/10">
+<h3 class="text-xs font-bold uppercase tracking-widest">Keyword Variations</h3>
+<div class="flex items-center gap-2">
+<span class="text-[10px] text-on-surface-variant uppercase font-bold">Total: --</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-high/40 text-[10px] text-on-surface-variant uppercase tracking-wider">
+<th class="px-6 py-3 font-medium">Keyword</th>
+<th class="px-6 py-3 font-medium text-right">Vol.</th>
+<th class="px-6 py-3 font-medium text-right">KD</th>
+<th class="px-6 py-3 font-medium text-right">CPC</th>
+</tr>
+</thead>
+<tbody class="text-sm">
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-surface-container text-center">
+<button class="text-[11px] font-bold uppercase text-on-surface-variant hover:text-primary transition-colors">Load More Variations</button>
+</div>
+</div>
+<!-- Strategic Insights Card -->
+<div class="mt-8 bg-gradient-to-br from-primary-container/20 to-surface-container border border-primary/20 p-4 md:p-6 rounded-xl relative overflow-hidden">
+<div class="relative z-10">
+<h3 class="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">psychology</span>
+                            AI Architect Recommendation
+                        </h3>
+<p class="text-sm leading-relaxed text-on-surface/90 mb-4 italic">
+                            Search for a keyword to see AI-generated strategic recommendations.
+                        </p>
+<div class="flex gap-4">
+<div class="flex-1 bg-surface-container-lowest/50 p-3 rounded">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Target Position</p>
+<p class="text-lg font-bold">#1-3</p>
+</div>
+<div class="flex-1 bg-surface-container-lowest/50 p-3 rounded">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant mb-1">Estimated ROI</p>
+<p class="text-lg font-bold text-secondary">High</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+
+<div id="view-keyword-gap" class="view-panel" >
+<!-- Row 1: Keyword Overlap (left) + Competitors (right) -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mb-4 md:mb-6">
+<!-- Venn Diagram -->
+<div class="lg:col-span-5 bg-surface-container-low rounded-xl p-4 md:p-6 flex flex-col items-center justify-center relative overflow-hidden">
+<div class="w-full mb-2">
+<h3 class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Keyword Overlap</h3>
+<p class="text-2xl font-black text-on-surface tabular-nums">-- <span class="text-xs font-normal text-on-surface-variant">Total</span></p>
+</div>
+<div class="relative w-56 h-56 md:w-64 md:h-64">
+<div class="venn-circle absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 md:w-44 md:h-44 rounded-full bg-primary flex items-center justify-center border-2 border-primary/20"></div>
+<div class="venn-circle absolute bottom-0 left-0 w-40 h-40 md:w-44 md:h-44 rounded-full bg-secondary flex items-center justify-center border-2 border-secondary/20"></div>
+<div class="venn-circle absolute bottom-0 right-0 w-40 h-40 md:w-44 md:h-44 rounded-full bg-tertiary flex items-center justify-center border-2 border-tertiary/20"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 text-[10px] font-bold text-on-surface">--</div>
+<div class="absolute top-1/3 left-1/4 z-10 text-[10px] font-bold text-on-surface">--</div>
+<div class="absolute top-1/3 right-1/4 z-10 text-[10px] font-bold text-on-surface">--</div>
+</div>
+<div class="grid grid-cols-3 w-full mt-6 gap-4">
+<div class="text-center">
+<div class="text-[10px] text-primary font-bold uppercase mb-1">Missing</div>
+<div class="text-xl font-bold tabular-nums">--</div>
+</div>
+<div class="text-center border-x border-outline-variant/10">
+<div class="text-[10px] text-secondary font-bold uppercase mb-1">Untapped</div>
+<div class="text-xl font-bold tabular-nums">--</div>
+</div>
+<div class="text-center">
+<div class="text-[10px] text-tertiary font-bold uppercase mb-1">Weak</div>
+<div class="text-xl font-bold tabular-nums">--</div>
+</div>
+</div>
+</div>
+<!-- Competitors + Actions (right side) -->
+<div class="lg:col-span-7 flex flex-col gap-3">
+<!-- Your domain -->
+<div class="bg-surface-container-low p-4 rounded-xl border-l-4 border-primary">
+<span class="text-[10px] uppercase tracking-widest text-primary font-bold">Your Domain</span>
+<div id="kwgap-domain-1" class="text-on-surface font-bold text-base mt-1">--</div>
+</div>
+<!-- Action buttons -->
+<div class="flex gap-3">
+<button onclick="findCompetitors(this)" class="flex-1 bg-surface-container-highest border border-outline-variant/10 text-on-surface py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#2a292f] transition-all" style="min-height:44px">
+<span class="material-symbols-outlined text-sm">search</span>
+<span class="text-xs">Find Competitors</span>
+</button>
+<button onclick="runKwGapAnalysis(this)" class="flex-1 bg-primary py-3 rounded-xl flex items-center justify-center gap-2 text-on-primary font-bold active:scale-95 transition-all" style="min-height:44px">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'wght' 700;">sync</span>
+<span class="text-xs">Run Gap Analysis</span>
+</button>
+</div>
+<!-- Competitor A -->
+<div id="kwgap-comp-a" class="bg-surface-container-low p-4 rounded-xl border-l-4 border-secondary">
+<div class="flex items-center justify-between">
+<span class="text-[10px] uppercase tracking-widest text-secondary font-bold">Competitor A</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error" onclick="clearGapComp('kwgap-domain-2')">close</span>
+</div>
+<input id="kwgap-domain-2" type="text" list="saved-competitors-list" placeholder="competitor1.com" class="w-full bg-surface-container border-none rounded-lg px-3 py-2 text-on-surface font-bold text-sm mt-2 focus:ring-1 focus:ring-secondary/40" style="font-size:16px" />
+</div>
+<!-- Competitor B -->
+<div id="kwgap-comp-b" class="bg-surface-container-low p-4 rounded-xl border-l-4 border-tertiary">
+<div class="flex items-center justify-between">
+<span class="text-[10px] uppercase tracking-widest text-tertiary font-bold">Competitor B</span>
+<span class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-error" onclick="clearGapComp('kwgap-domain-3')">close</span>
+</div>
+<input id="kwgap-domain-3" type="text" list="saved-competitors-list" placeholder="competitor2.com" class="w-full bg-surface-container border-none rounded-lg px-3 py-2 text-on-surface font-bold text-sm mt-2 focus:ring-1 focus:ring-tertiary/40" style="font-size:16px" />
+<datalist id="saved-competitors-list"></datalist>
+</div>
+<!-- Summary stats row -->
+<div id="kwgap-summary-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<div class="bg-surface-container p-3 rounded-lg text-center">
+<div class="text-[10px] text-primary font-bold uppercase mb-1">Missing</div>
+<div id="kwgap-stat-missing" class="text-lg font-black tabular-nums">--</div>
+<div class="text-[9px] text-on-surface-variant">They rank, you don't</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg text-center">
+<div class="text-[10px] text-tertiary font-bold uppercase mb-1">Weak</div>
+<div id="kwgap-stat-weak" class="text-lg font-black tabular-nums">--</div>
+<div class="text-[9px] text-on-surface-variant">They top 10, you 20+</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg text-center">
+<div class="text-[10px] text-secondary font-bold uppercase mb-1">Untapped</div>
+<div id="kwgap-stat-untapped" class="text-lg font-black tabular-nums">--</div>
+<div class="text-[9px] text-on-surface-variant">Both rank low</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg text-center">
+<div class="text-[10px] text-[#4ae176] font-bold uppercase mb-1">Strong</div>
+<div id="kwgap-stat-strong" class="text-lg font-black tabular-nums">--</div>
+<div class="text-[9px] text-on-surface-variant">You outrank them</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Row 2: Top Opportunities (expandable) -->
+<section class="mb-3 md:mb-4">
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div onclick="toggleGapPanel('kwgap-opportunities-body',this)" class="p-4 md:px-6 md:py-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-container-high/30 transition-colors select-none">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Top Opportunities</h3>
+<p class="text-[10px] text-on-surface-variant">Keywords competitors rank for that you're missing or weak on</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span id="kwgap-opp-count" class="text-xs font-bold text-on-surface-variant tabular-nums">--</span>
+<span id="kwgap-opp-traffic" class="text-xs font-bold text-secondary tabular-nums">--</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg kwgap-chevron" style="transition:transform 200ms">expand_more</span>
+</div>
+</div>
+<div id="kwgap-opportunities-body" class="overflow-x-auto border-t border-outline-variant/10" style="display:none">
+<div style="padding:32px;text-align:center;color:#8c909f;font-size:13px">Run a gap analysis to discover keyword opportunities.</div>
+</div>
+</div>
+</section>
+<!-- Row 3: Risk Factors (expandable) -->
+<section class="mb-3 md:mb-4">
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div onclick="toggleGapPanel('kwgap-risks-body',this)" class="p-4 md:px-6 md:py-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-surface-container-high/30 transition-colors select-none">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div>
+<h3 class="text-sm font-bold text-on-surface">Risk Factors</h3>
+<p class="text-[10px] text-on-surface-variant">Keywords where competitors outrank you — positions at risk of losing traffic</p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<span id="kwgap-risk-count" class="text-xs font-bold text-on-surface-variant tabular-nums">--</span>
+<span class="material-symbols-outlined text-on-surface-variant text-lg kwgap-chevron" style="transition:transform 200ms">expand_more</span>
+</div>
+</div>
+<div id="kwgap-risks-body" class="overflow-x-auto border-t border-outline-variant/10" style="display:none">
+<div style="padding:32px;text-align:center;color:#8c909f;font-size:13px">Run a gap analysis to identify at-risk keywords.</div>
+</div>
+</div>
+</section>
+<!-- Results Table Section -->
+<section class="bg-surface-container-low rounded-xl overflow-hidden shadow-2xl">
+<div class="p-4 md:p-6 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low/50 backdrop-blur-md">
+<div class="flex items-center gap-4 overflow-x-auto" style="-webkit-overflow-scrolling:touch">
+<div class="flex p-1 bg-surface-container-lowest rounded-lg border border-outline-variant/10 flex-shrink-0">
+<button class="px-3 md:px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-on-primary transition-all whitespace-nowrap">Missing</button>
+<button class="px-3 md:px-4 py-1.5 rounded-md text-xs font-bold text-on-surface-variant hover:text-on-surface transition-all whitespace-nowrap">Weak</button>
+<button class="px-3 md:px-4 py-1.5 rounded-md text-xs font-bold text-on-surface-variant hover:text-on-surface transition-all whitespace-nowrap">Untapped</button>
+<button class="px-3 md:px-4 py-1.5 rounded-md text-xs font-bold text-on-surface-variant hover:text-on-surface transition-all whitespace-nowrap">Strong</button>
+<button class="px-3 md:px-4 py-1.5 rounded-md text-xs font-bold text-on-surface-variant hover:text-on-surface transition-all whitespace-nowrap">All</button>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm text-outline">search</span>
+<input id="kwgap-search" class="bg-surface-container-highest border-none text-xs rounded-lg pl-9 pr-4 py-2 w-64 focus:ring-1 focus:ring-primary/40" placeholder="Filter keywords..." type="text" oninput="filterKwGapTable(this.value)" style="font-size:16px"/>
+</div>
+<button onclick="filterKwGapTable('')" class="p-2 border border-outline-variant/10 rounded-lg hover:bg-surface-container-highest" title="Clear filter"><span class="material-symbols-outlined text-sm">filter_list</span></button>
+<button onclick="exportKwGapCSV()" class="p-2 border border-outline-variant/10 rounded-lg hover:bg-surface-container-highest" title="Export CSV"><span class="material-symbols-outlined text-sm">download</span></button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-['Inter']">
+<thead>
+<tr class="bg-surface-container-lowest/50 border-b border-outline-variant/10">
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('keyword')">Keyword <span class="kwgap-sort-icon"></span></th>
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-center cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('yourPos')">Your Pos <span class="kwgap-sort-icon"></span></th>
+<th id="kwgap-comp-a-header" class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-center cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('compPos')">Comp Pos <span class="kwgap-sort-icon"></span></th>
+<th id="kwgap-comp-b-header" class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-center">Competitor</th>
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-right cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('volume')">Volume <span class="kwgap-sort-icon"></span></th>
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-center cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('kd')">KD% <span class="kwgap-sort-icon"></span></th>
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-center cursor-pointer hover:text-on-surface select-none" onclick="sortKwGapTable('intent')">Intent <span class="kwgap-sort-icon"></span></th>
+<th class="px-6 py-4 text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-black text-right">Track</th>
+</tr>
+</thead>
+<tbody id="kwgap-table-body" class="divide-y divide-outline-variant/5">
+</tbody>
+</table>
+</div>
+<div id="kwgap-pagination" class="p-4 md:p-6 bg-surface-container-lowest/30 flex items-center justify-between border-t border-outline-variant/10">
+<span class="text-xs text-on-surface-variant tabular-nums">Showing 0 keywords</span>
+<div class="flex gap-2">
+<button onclick="kwGapTablePage(-1)" class="px-3 py-1 bg-surface-container-highest rounded border border-outline-variant/20 text-xs hover:text-on-surface transition-colors" disabled>Previous</button>
+<button onclick="kwGapTablePage(1)" class="px-3 py-1 bg-surface-container-highest rounded border border-outline-variant/20 text-xs hover:text-on-surface transition-colors" disabled>Next</button>
+</div>
+</div>
+</section>
+</div>
+
+
+<div id="view-audit" class="view-panel" >
+<!-- Dashboard Header -->
+<div class="mb-4 md:mb-10">
+<h2 class="text-lg md:text-3xl font-black tracking-tight text-on-surface mb-1">Site Audit</h2>
+<p class="text-on-surface-variant text-xs md:text-sm font-medium mb-3">Last full crawl: --</p>
+<div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg overflow-x-auto" style="-webkit-overflow-scrolling:touch;">
+<button onclick="auditTab('overview')" class="audit-tab px-3 py-1.5 text-xs font-bold text-on-surface bg-surface-container-high rounded shadow-sm whitespace-nowrap" data-tab="overview">Overview</button>
+<button onclick="auditTab('issues')" class="audit-tab px-3 py-1.5 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors whitespace-nowrap" data-tab="issues">Issues</button>
+<button onclick="auditTab('log')" class="audit-tab px-3 py-1.5 text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors whitespace-nowrap" data-tab="log">Audit History</button>
+</div>
+</div>
+<!-- Top Row: Score & Overview -->
+<div id="audit-sec-overview"></div>
+<div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 mb-4 md:mb-8">
+<!-- Health Score Gauge -->
+<div class="md:col-span-3 bg-surface-container-low rounded-xl p-4 md:p-6 flex flex-col items-center justify-center relative overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-secondary/40 via-secondary to-secondary/40"></div>
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-3 md:mb-4">Health Score</h3>
+<div class="relative mx-auto" style="width:140px;height:140px;">
+<canvas id="gauge-health" width="280" height="280" style="width:140px;height:140px;"></canvas>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span id="gauge-health-val" class="text-3xl md:text-4xl font-black tabular-nums text-on-surface"></span>
+<span id="gauge-health-label" class="text-[10px] font-bold uppercase tracking-widest mt-1"></span>
+</div>
+</div>
+</div>
+<!-- Crawl Statistics Bento -->
+<div class="md:col-span-6 bg-surface-container-low rounded-xl p-4 md:p-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+<div class="col-span-2 md:col-span-4 mb-2 flex justify-between items-center">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant">Crawl Overview</h3>
+<div class="flex items-center gap-2 text-xs font-bold tabular-nums text-on-surface">
+<span class="w-2 h-2 rounded-full bg-secondary"></span> <span id="audit-total-pages">-- Total Pages</span>
+                    </div>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant/70 mb-1">Healthy</span>
+<span id="audit-healthy" class="text-2xl font-black text-secondary tabular-nums">--</span>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant/70 mb-1">Broken</span>
+<span id="audit-broken" class="text-2xl font-black text-tertiary-container tabular-nums">--</span>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant/70 mb-1">Redirected</span>
+<span id="audit-redirected" class="text-2xl font-black text-[#ffb347] tabular-nums">--</span>
+</div>
+<div class="bg-surface-container p-4 rounded-lg flex flex-col">
+<span class="text-[10px] uppercase font-bold text-on-surface-variant/70 mb-1">Blocked</span>
+<span id="audit-blocked" class="text-2xl font-black text-outline tabular-nums">--</span>
+</div>
+<div class="col-span-2 md:col-span-4 mt-2">
+<div class="w-full h-2 bg-surface-container-highest rounded-full flex overflow-hidden">
+<div class="h-full bg-secondary" style="width: 0%"></div>
+<div class="h-full bg-[#ffb347]" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<!-- Crawl History Sparkline -->
+<div class="md:col-span-3 bg-surface-container-low rounded-xl p-4 md:p-6 flex flex-col min-h-[120px]">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-3 md:mb-6">Crawl History</h3>
+<div class="flex-1 flex items-end justify-between gap-2 px-2">
+<div class="flex-1 bg-secondary/10 rounded-t-sm relative group h-[100%]">
+<div class="absolute bottom-0 w-full bg-secondary h-full rounded-t-sm"></div>
+</div>
+<div class="flex-1 bg-secondary/10 rounded-t-sm relative group h-[100%]">
+<div class="absolute bottom-0 w-full bg-secondary h-full rounded-t-sm"></div>
+</div>
+<div class="flex-1 bg-secondary/10 rounded-t-sm relative group h-[100%]">
+<div class="absolute bottom-0 w-full bg-secondary h-full rounded-t-sm"></div>
+</div>
+<div class="flex-1 bg-secondary/10 rounded-t-sm relative group h-[100%]">
+<div class="absolute bottom-0 w-full bg-secondary h-full rounded-t-sm"></div>
+</div>
+<div class="flex-1 bg-secondary/10 rounded-t-sm relative group h-[100%]">
+<div class="absolute bottom-0 w-full bg-secondary h-full rounded-t-sm"></div>
+</div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-on-surface-variant tracking-tighter tabular-nums">
+<span>--</span>
+<span>--</span>
+</div>
+</div>
+</div>
+<div id="audit-sec-issues"></div>
+<!-- Issue Severity Totals -->
+<div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-4 md:mb-8">
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-tertiary-container flex justify-between items-center">
+<div>
+<h4 class="text-xs font-bold text-tertiary-container uppercase tracking-widest mb-1">Critical Issues</h4>
+<p class="text-sm text-on-surface-variant font-medium">Immediate action required</p>
+</div>
+<span id="audit-critical-count" class="text-2xl md:text-4xl font-black tabular-nums text-on-surface">--</span>
+</div>
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-[#ffb347] flex justify-between items-center">
+<div>
+<h4 class="text-xs font-bold text-[#ffb347] uppercase tracking-widest mb-1">Warnings</h4>
+<p class="text-sm text-on-surface-variant font-medium">Moderate impact on performance</p>
+</div>
+<span id="audit-warning-count" class="text-2xl md:text-4xl font-black tabular-nums text-on-surface">--</span>
+</div>
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl border-l-4 border-primary-container flex justify-between items-center">
+<div>
+<h4 class="text-xs font-bold text-primary-container uppercase tracking-widest mb-1">Notices</h4>
+<p class="text-sm text-on-surface-variant font-medium">Optimization opportunities</p>
+</div>
+<span id="audit-notice-count" class="text-2xl md:text-4xl font-black tabular-nums text-on-surface">--</span>
+</div>
+</div>
+<!-- Two Column Content Area -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-8">
+<!-- Detailed Issue List -->
+<div class="md:col-span-8 bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-3 md:p-6 border-b border-outline-variant/10 flex flex-wrap justify-between items-center gap-2">
+<h3 class="font-black text-sm md:text-lg tracking-tight">Audit Findings</h3>
+<div class="flex gap-3">
+<div class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span> Error
+                        </div>
+<div class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-[#ffb347]"></span> Warning
+                        </div>
+<div class="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container"></span> Notice
+                        </div>
+</div>
+</div>
+<div id="audit-findings-list" class="divide-y divide-outline-variant/5">
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-tertiary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Broken links (4xx)</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Links pointing to non-existent pages</p>
+</div>
+<span class="tabular-nums text-sm font-black text-on-surface-variant mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-tertiary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Server errors (5xx)</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Internal server response failures</p>
+</div>
+<span class="tabular-nums text-sm font-black text-on-surface-variant mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-[#ffb347] mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Redirect chains</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Multiple hops before destination</p>
+</div>
+<span class="tabular-nums text-sm font-black text-[#ffb347] mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-primary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Missing alt text</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Images without descriptive accessibility text</p>
+</div>
+<span class="tabular-nums text-sm font-black text-primary-container mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-primary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Large images</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Images larger than 500kb</p>
+</div>
+<span class="tabular-nums text-sm font-black text-primary-container mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-primary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Orphan pages</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Pages with no incoming internal links</p>
+</div>
+<span class="tabular-nums text-sm font-black text-primary-container mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+<!-- Issue Row -->
+<div class="p-4 flex items-center hover:bg-surface-container transition-colors group">
+<span class="w-2 h-2 rounded-full bg-primary-container mr-4"></span>
+<div class="flex-1">
+<h5 class="text-sm font-bold text-on-surface">Missing H1</h5>
+<p class="text-[10px] text-on-surface-variant font-medium">Pages without a primary header tag</p>
+</div>
+<span class="tabular-nums text-sm font-black text-primary-container mr-6">--</span>
+<button class="material-symbols-outlined text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">chevron_right</button>
+</div>
+</div>
+<div class="p-4 bg-surface-container-lowest/50 text-center">
+<button class="text-xs font-bold text-primary-fixed-dim hover:underline uppercase tracking-widest">View all findings</button>
+</div>
+</div>
+<!-- Charts Column -->
+<div class="md:col-span-4 space-y-4 md:space-y-8">
+<!-- Donut Chart: Status Codes -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-3 md:mb-6">Pages by Status Code</h3>
+<div class="flex items-center gap-4 md:gap-8">
+<div class="relative w-20 h-20 md:w-24 md:h-24 shrink-0">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<circle cx="18" cy="18" fill="transparent" r="15.9" stroke="#1f1f25" stroke-width="3"></circle>
+<circle id="audit-donut-200" cx="18" cy="18" fill="transparent" r="15.9" stroke="#4ae176" stroke-dasharray="0 100" stroke-width="3"></circle>
+<circle id="audit-donut-301" cx="18" cy="18" fill="transparent" r="15.9" stroke="#ffb347" stroke-dasharray="0 100" stroke-dashoffset="0" stroke-width="3"></circle>
+<circle id="audit-donut-4xx" cx="18" cy="18" fill="transparent" r="15.9" stroke="#ffb3ad" stroke-dasharray="0 100" stroke-dashoffset="0" stroke-width="3"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span id="audit-status-code-label" class="text-xs font-black tabular-nums">--</span>
+</div>
+</div>
+<div class="flex-1 space-y-3">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-xs font-bold text-on-surface">200 OK</span>
+</div>
+<span id="audit-pct-200" class="text-xs font-black tabular-nums">--%</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-[#ffb347]"></span>
+<span class="text-xs font-bold text-on-surface">301 Redir</span>
+</div>
+<span id="audit-pct-301" class="text-xs font-black tabular-nums">--%</span>
+</div>
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+<span class="text-xs font-bold text-on-surface">4xx Error</span>
+</div>
+<span id="audit-pct-4xx" class="text-xs font-black tabular-nums">--%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Run Audit Card -->
+<div class="bg-surface-container-low p-4 md:p-6 rounded-xl relative overflow-hidden">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-4">Site Crawl</h3>
+<div class="space-y-3">
+<div class="flex justify-between py-2 border-b border-outline-variant/5">
+<span class="text-xs text-on-surface-variant">Max Pages</span>
+<span class="text-xs font-bold text-on-surface">200</span>
+</div>
+<div class="flex justify-between py-2 border-b border-outline-variant/5">
+<span class="text-xs text-on-surface-variant">Est. Cost</span>
+<span class="text-xs font-bold text-[#f59e0b]">~$0.075</span>
+</div>
+</div>
+<button onclick="startAudit(this)" class="mt-4 w-full bg-primary text-on-primary font-bold py-3 rounded-lg text-xs uppercase tracking-widest hover:opacity-90 transition-opacity" style="min-height:44px">Start New Crawl</button>
+</div>
+<!-- Lighthouse Scores -->
+<div id="audit-lighthouse-card" class="bg-surface-container-low p-4 md:p-6 rounded-xl">
+<h3 class="text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant mb-4">Lighthouse Scores (Mobile)</h3>
+<div id="audit-lighthouse-scores">
+<div style="text-align:center;padding:16px;color:#64687a;font-size:12px">Run Lighthouse to get performance scores</div>
+</div>
+</div>
+</div>
+</div>
+</div><!-- end issues two-column -->
+
+<div id="audit-sec-log"></div>
+<!-- Audit History -->
+<div id="audit-history-panel"></div>
+
+<!-- Page Deep-Dive Section -->
+<section id="audit-page-deepdive" class="mt-6 md:mt-8 bg-surface-container-low rounded-xl p-4 md:p-6 border border-outline-variant/10">
+<div class="mb-4">
+<h3 class="text-sm font-bold text-on-surface mb-1">Page Deep-Dive</h3>
+<p class="text-[10px] text-on-surface-variant">Analyze a specific page's on-page SEO elements</p>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+<input id="deepdive-url-input" type="text" placeholder="https://example.com/page" style="flex:1;min-width:200px;background:#1b1b20;border:1px solid rgba(66,71,84,0.2);border-radius:8px;padding:12px 14px;font-size:14px;color:#e4e1e9;outline:none;min-height:44px">
+<button id="deepdive-analyze-btn" onclick="fetchPageDeepDive(this)" style="background:#adc6ff;color:#0e0e13;font-weight:700;padding:12px 20px;border-radius:8px;border:none;cursor:pointer;font-size:13px;white-space:nowrap;min-height:44px">Analyze Page (~$0.01)</button>
+<button id="deepdive-screenshot-btn" onclick="fetchPageScreenshot(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;font-weight:600;padding:12px 16px;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap;min-height:44px">
+<span class="material-symbols-outlined" style="font-size:14px;vertical-align:middle;margin-right:4px">photo_camera</span>Screenshot (~$0.01)</button>
+</div>
+<div id="deepdive-results">
+<div style="text-align:center;padding:30px;color:#64687a;font-size:12px">Enter a URL above to analyze its on-page elements</div>
+</div>
+<div id="deepdive-screenshot" style="margin-top:16px"></div>
+</section>
+</div><!-- end view-audit -->
+
+
+<div id="view-ai-visibility" class="view-panel" >
+<div class="space-y-4 md:space-y-6">
+<!-- Header -->
+<div class="flex flex-wrap justify-between items-end gap-4 mb-2">
+<div>
+<h2 class="text-xl md:text-2xl font-extrabold tracking-tight text-on-surface">AI & Brand Intelligence</h2>
+<p class="text-on-surface-variant text-xs mt-1">How AI models and the web mention your brand</p>
+</div>
+<div class="flex flex-wrap gap-2">
+<button onclick="refreshAIModelMentions(this)" class="bg-primary text-on-primary font-bold text-xs px-5 py-3 rounded-lg hover:opacity-90 transition-opacity min-h-[44px]">Scan AI Models (~$0.10)</button>
+<button onclick="refreshAIVisibility(this)" class="bg-surface-container-high text-on-surface font-bold text-xs px-5 py-3 rounded-lg hover:opacity-90 transition-opacity min-h-[44px] border border-outline-variant/20">Scan Web (~$0.07)</button>
+</div>
+</div>
+
+<!-- ============ AI MODEL MENTIONS ============ -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-4 md:px-6 md:py-4 border-b border-outline-variant/10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-size:18px">smart_toy</span>
+<h3 class="text-sm font-bold text-on-surface">AI Model Mentions</h3>
+<span class="text-[9px] font-bold px-2 py-0.5 rounded bg-primary/15 text-primary">AI TRACKING</span>
+</div>
+<p class="text-[10px] text-on-surface-variant mt-1">What ChatGPT, Claude, Gemini & Perplexity say when asked about your business</p>
+</div>
+<!-- AI KPI Row -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+<div class="bg-surface-container p-3 rounded-lg">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">AI Mentions</p>
+<span id="ai-llm-total" class="text-2xl font-black tabular-nums">--</span>
+</div>
+<div class="bg-surface-container p-3 rounded-lg">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Platforms</p>
+<span id="ai-llm-platforms" class="text-2xl font-black tabular-nums text-primary">--</span>
+</div>
+<div class="bg-surface-container p-3 rounded-lg">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Top Domains</p>
+<span id="ai-llm-top-domains" class="text-2xl font-black tabular-nums text-[#4ae176]">--</span>
+</div>
+<div class="bg-surface-container p-3 rounded-lg">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Last Scan</p>
+<span id="ai-llm-last-scan" class="text-sm font-bold tabular-nums text-on-surface-variant">Never</span>
+</div>
+</div>
+<!-- AI Mentions table -->
+<div id="ai-llm-mentions-container" class="px-4 pb-4">
+<div style="padding:30px;text-align:center;color:#8c909f;font-size:13px">
+Click "Scan AI Models" to check if AI chatbots mention your brand.<br/>
+<span class="text-[10px]">Small local businesses may have 0 AI mentions — this is normal. Track over time to see growth.</span>
+</div>
+</div>
+<!-- Top AI-Citing Domains -->
+<div style="padding:0 16px 16px;border-top:1px solid rgba(66,71,84,0.1)">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0 8px">
+<div>
+<h4 style="font-size:13px;font-weight:700;color:#e4e1e9">Top AI-Citing Domains</h4>
+<p style="font-size:10px;color:#8c909f;margin-top:2px">Domains most cited alongside your brand in AI responses</p>
+</div>
+<button onclick="fetchTopAiDomains(this)" style="padding:8px 14px;font-size:11px;font-weight:700;color:#adc6ff;background:rgba(173,198,255,0.08);border:1px solid rgba(173,198,255,0.15);border-radius:8px;cursor:pointer;white-space:nowrap;min-height:44px">Fetch Top Domains (~$0.10)</button>
+</div>
+<div id="ai-top-domains-container">
+<div style="padding:16px;text-align:center;color:#64687a;font-size:12px">Click "Scan AI Models" or "Fetch Top Domains" to load data</div>
+</div>
+</div>
+</div>
+
+<!-- ============ WEB MENTIONS KPIs ============ -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+<div class="bg-surface-container-low p-4 rounded-xl">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Web Mentions</p>
+<span id="avis-total-mentions" class="text-2xl font-black tabular-nums">--</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Positive</p>
+<span id="avis-positive-count" class="text-2xl font-black tabular-nums text-[#4ae176]">--</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Neutral</p>
+<span id="avis-neutral-count" class="text-2xl font-black tabular-nums text-on-surface-variant">--</span>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl">
+<p class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest mb-1">Negative</p>
+<span id="avis-negative-count" class="text-2xl font-black tabular-nums text-[#ffb3ad]">--</span>
+</div>
+</div>
+<!-- Sentiment + Sources row -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+<!-- Sentiment gauge -->
+<div class="md:col-span-4 bg-surface-container-low p-4 md:p-6 rounded-xl">
+<h3 class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4">Web Sentiment</h3>
+<div id="chart-avis-sentiment" style="min-height:140px">
+<div class="flex items-center justify-center" style="height:140px">
+<div class="text-center">
+<div class="text-3xl font-black text-on-surface-variant/30 tabular-nums">--%</div>
+<div class="text-[10px] text-on-surface-variant mt-1">Run a scan</div>
+</div>
+</div>
+</div>
+<p id="avis-sentiment-label" class="text-xs font-bold text-secondary text-center mt-1"></p>
+</div>
+<!-- Top sources -->
+<div class="md:col-span-8 bg-surface-container-low p-4 md:p-6 rounded-xl">
+<h3 class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4">Top Web Sources Mentioning Your Brand</h3>
+<div id="avis-leading-sources">
+<div class="text-xs text-on-surface-variant text-center py-4">Run a web scan to discover sources</div>
+</div>
+</div>
+</div>
+<!-- Full mentions table -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden">
+<div class="p-4 md:px-6 md:py-4 border-b border-outline-variant/10 flex flex-wrap items-center justify-between gap-3">
+<div>
+<h3 class="text-sm font-bold text-on-surface">All Web Mentions</h3>
+<p class="text-[10px] text-on-surface-variant">Accumulated across all web scans — newest first</p>
+</div>
+<div class="flex items-center gap-3">
+<input id="avis-search" type="text" placeholder="Filter mentions..." class="bg-surface-container border-none text-xs rounded-lg px-3 py-2 w-48 focus:ring-1 focus:ring-primary/40" style="font-size:16px" oninput="filterAvisMentions(this.value)"/>
+<span id="avis-table-count" class="text-[10px] text-on-surface-variant tabular-nums">--</span>
+</div>
+</div>
+<div id="avis-mentions-table" class="overflow-x-auto">
+<div style="padding:40px;text-align:center;color:#8c909f;font-size:13px">Run a web scan to find brand mentions across the web.</div>
+</div>
+<div id="avis-mentions-pagination"></div>
+</div>
+</div>
+</div>
+
+
+<div id="view-backlinks" class="view-panel" >
+<div class="mb-3 md:mb-6">
+<h2 class="text-xl font-bold text-[#e4e1e9] mb-1">Backlink Profile</h2>
+<p class="text-xs text-[#c2c6d6]/60">Monitor your link profile, referring domains, and link growth</p>
+</div>
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 md:mb-6">
+<div class="bg-[#1f1f25] rounded-xl p-4 border border-[#424754]/20">
+<p class="text-[10px] font-bold tracking-widest text-[#8c909f] uppercase mb-1">Total Backlinks</p>
+<p id="bl-total" class="text-2xl font-bold text-[#e4e1e9]" style="font-variant-numeric:tabular-nums">--</p>
+<p id="bl-total-change" class="text-[10px] text-[#4ae176] mt-1"></p>
+</div>
+<div class="bg-[#1f1f25] rounded-xl p-4 border border-[#424754]/20">
+<p class="text-[10px] font-bold tracking-widest text-[#8c909f] uppercase mb-1">Referring Domains</p>
+<p id="bl-referring-domains" class="text-2xl font-bold text-[#adc6ff]" style="font-variant-numeric:tabular-nums">--</p>
+<p id="bl-referring-domains-change" class="text-[10px] text-[#4ae176] mt-1"></p>
+</div>
+<div class="bg-[#1f1f25] rounded-xl p-4 border border-[#424754]/20">
+<p class="text-[10px] font-bold tracking-widest text-[#8c909f] uppercase mb-1">Dofollow Ratio</p>
+<p id="bl-dofollow-ratio" class="text-2xl font-bold text-[#4ae176]" style="font-variant-numeric:tabular-nums">--%</p>
+<p id="bl-dofollow-count" class="text-[10px] text-[#c2c6d6]/60 mt-1"></p>
+</div>
+<div class="bg-[#1f1f25] rounded-xl p-4 border border-[#424754]/20">
+<p class="text-[10px] font-bold tracking-widest text-[#8c909f] uppercase mb-1">Domain Rating</p>
+<p id="bl-domain-rating" class="text-2xl font-bold text-[#ffb3ad]" style="font-variant-numeric:tabular-nums">--</p>
+<p id="bl-domain-rating-sub" class="text-[10px] text-[#c2c6d6]/60 mt-1"></p>
+</div>
+</div>
+<!-- Backlink Growth Chart -->
+<div class="bg-[#131318] rounded-xl border border-[#424754]/20 p-4 md:p-6 mb-4 md:mb-6">
+<div class="flex flex-wrap justify-between items-center mb-4 gap-3">
+<div>
+<h3 class="text-sm font-bold text-[#e4e1e9]">Backlink Growth</h3>
+<p class="text-[10px] text-[#8c909f] mt-1">Historical backlink count + referring domains over time</p>
+</div>
+<button onclick="fetchBacklinkHistory(this)" class="text-[10px] font-bold text-[#adc6ff] uppercase tracking-wider flex items-center gap-1 hover:text-[#e4e1e9] transition-colors px-3 py-1.5 border border-[#424754]/30 rounded-lg min-h-[32px]">
+<span class="material-symbols-outlined text-sm">history</span> Full History (~$0.02)
+</button>
+</div>
+<div id="chart-backlink-growth" style="min-height:200px"></div>
+</div>
+<!-- New / Lost Summary -->
+<div id="bl-new-lost" class="bg-[#131318] rounded-xl border border-[#424754]/20 p-4 md:p-6" style="display:none">
+<h3 class="text-sm font-bold text-[#e4e1e9] mb-3">New vs Lost (since last check)</h3>
+<div class="grid grid-cols-2 gap-4">
+  <div class="text-center p-3 bg-[#1f1f25] rounded-lg">
+    <div id="bl-new-count" class="text-xl font-black text-secondary tabular-nums">--</div>
+    <div class="text-[10px] text-[#8c909f] uppercase font-bold">New Backlinks</div>
+  </div>
+  <div class="text-center p-3 bg-[#1f1f25] rounded-lg">
+    <div id="bl-lost-count" class="text-xl font-black text-tertiary-container tabular-nums">--</div>
+    <div class="text-[10px] text-[#8c909f] uppercase font-bold">Lost Backlinks</div>
+  </div>
+</div>
+<div class="mt-3 grid grid-cols-2 gap-4">
+  <div class="text-center p-3 bg-[#1f1f25] rounded-lg">
+    <div id="bl-new-domains" class="text-xl font-black text-secondary tabular-nums">--</div>
+    <div class="text-[10px] text-[#8c909f] uppercase font-bold">New Ref Domains</div>
+  </div>
+  <div class="text-center p-3 bg-[#1f1f25] rounded-lg">
+    <div id="bl-lost-domains" class="text-xl font-black text-tertiary-container tabular-nums">--</div>
+    <div class="text-[10px] text-[#8c909f] uppercase font-bold">Lost Ref Domains</div>
+  </div>
+</div>
+</div>
+
+<!-- Referring Domains Table -->
+<div class="bg-[#131318] rounded-xl border border-[#424754]/20 overflow-hidden">
+<div class="px-6 py-4 border-b border-[#424754]/20 flex justify-between items-center">
+<div>
+<h3 class="text-sm font-bold text-[#e4e1e9]">Top Referring Domains</h3>
+<p class="text-[10px] text-[#8c909f]">Sorted by domain authority</p>
+</div>
+<button class="bg-[#1f1f25] text-[#adc6ff] text-xs font-bold px-3 py-1.5 rounded-lg border border-[#424754]/30 hover:border-[#adc6ff]/50 transition-all">Check Backlinks</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead><tr class="border-b border-[#424754]/20">
+<th class="text-left px-6 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">Domain</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">DR</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">Backlinks</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">Type</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">First Seen</th>
+</tr></thead>
+<tbody id="bl-domains-body">
+</tbody>
+</table>
+</div>
+</div>
+<!-- Anchor Text Breakdown -->
+<div id="anchor-text-breakdown" class="mt-4 md:mt-6 bg-[#131318] rounded-xl border border-[#424754]/20 overflow-hidden" style="display:none">
+<div class="px-6 py-4 border-b border-[#424754]/20">
+<h3 class="text-sm font-bold text-[#e4e1e9]">Top Anchor Texts</h3>
+<p class="text-[10px] text-[#8c909f]">Most common link anchor texts pointing to your site</p>
+</div>
+<div id="anchor-text-list" class="p-4"></div>
+</div>
+<!-- Individual Backlinks Table -->
+<div class="mt-4 md:mt-6 bg-[#131318] rounded-xl border border-[#424754]/20 overflow-hidden">
+<div class="px-4 md:px-6 py-4 border-b border-[#424754]/20 flex flex-wrap justify-between items-center gap-3">
+<div>
+<h3 class="text-sm font-bold text-[#e4e1e9]">Individual Backlinks</h3>
+<p class="text-[10px] text-[#8c909f]">Actual pages linking to your site — URL, anchor text, type</p>
+</div>
+<button onclick="fetchIndividualBacklinks(this)" class="bg-[#1f1f25] text-[#adc6ff] text-xs font-bold px-3 py-1.5 rounded-lg border border-[#424754]/30 hover:border-[#adc6ff]/50 transition-all min-h-[32px]">Fetch Links (~$0.02)</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-sm">
+<thead><tr class="border-b border-[#424754]/20">
+<th class="text-left px-4 md:px-6 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">From URL</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase hidden md:table-cell">To URL</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">Anchor</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase">Type</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase hidden md:table-cell">DR</th>
+<th class="text-left px-4 py-3 text-[10px] font-bold tracking-widest text-[#8c909f] uppercase hidden md:table-cell">First Seen</th>
+</tr></thead>
+<tbody id="bl-individual-body">
+<tr><td colspan="6" style="padding:40px;text-align:center;color:#8c909f;font-size:13px">Click "Fetch Links" to load individual backlinks (~$0.02)</td></tr>
+</tbody>
+</table>
+</div>
+<div id="bl-individual-pagination"></div>
+</div>
+<!-- Backlink Competitors / Link Building Opportunities -->
+<div class="mt-4 md:mt-6 bg-[#131318] rounded-xl border border-[#424754]/20 overflow-hidden">
+<div class="px-4 md:px-6 py-4 border-b border-[#424754]/20 flex flex-wrap justify-between items-center gap-3">
+<div>
+<h3 class="text-sm font-bold text-[#e4e1e9]">Link Building Opportunities</h3>
+<p class="text-[10px] text-[#8c909f]">Domains that link to competitors but not to you — potential outreach targets</p>
+</div>
+<button onclick="fetchBacklinkCompetitors(this)" class="bg-[#1f1f25] text-[#adc6ff] text-xs font-bold px-3 py-1.5 rounded-lg border border-[#424754]/30 hover:border-[#adc6ff]/50 transition-all min-h-[32px]">Find Link Opportunities (~$0.02)</button>
+</div>
+<div id="bl-competitors-body" class="overflow-x-auto">
+<div style="padding:32px;text-align:center;color:#8c909f;font-size:13px">Click "Find Link Opportunities" to discover domains linking to competitors but not to you</div>
+</div>
+</div>
+<!-- Backlink Analysis History -->
+<div id="bl-history-panel" class="mt-4 md:mt-6"></div>
+</div>
+
+
+<div id="view-local" class="view-panel">
+<div class="mb-4 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+  <div>
+    <h2 class="text-xl md:text-3xl font-bold tracking-tight text-on-surface mb-1">Local SEO</h2>
+    <p class="text-on-surface-variant text-xs md:text-sm">Monitor your Google Business Profile, local rankings, and review presence.</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="last-updated-local" style="font-size:10px;color:#8c909f"></span>
+    <button onclick="refreshLocalSEO(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;white-space:nowrap">Refresh Data (~$0.03)</button>
+  </div>
+</div>
+
+<div id="local-content" class="space-y-4 md:space-y-6">
+
+  <!-- Business Profile Card -->
+  <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;position:relative;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">storefront</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Business Profile</span>
+    </div>
+    <div id="local-business-profile" style="color:#8c909f;font-size:14px">
+      <div style="padding:20px;text-align:center">Click Refresh to load your Google Business Profile data.</div>
+    </div>
+  </div>
+
+  <!-- Trend Charts Row: Review Trend + Map Position History -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+    <!-- Review/Rating Trend -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">star</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Review Trend</span>
+      </div>
+      <div id="local-review-trend" style="min-height:200px">
+        <div style="padding:20px;text-align:center;color:#8c909f;font-size:12px">Review trend will build over time as you refresh.</div>
+      </div>
+    </div>
+
+    <!-- Map Pack Position History -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">timeline</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Map Position History</span>
+      </div>
+      <div id="local-map-trend" style="min-height:200px">
+        <div style="padding:20px;text-align:center;color:#8c909f;font-size:12px">Map position tracking will build over time as you refresh.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Rating Distribution + Reviews Feed -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+
+    <!-- Rating Distribution -->
+    <div class="lg:col-span-4" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">star</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Rating Distribution</span>
+      </div>
+      <div id="local-rating-dist" style="color:#8c909f;font-size:13px;padding:12px 0">
+        Rating data will appear after refresh.
+      </div>
+    </div>
+
+    <!-- Recent Reviews Feed -->
+    <div class="lg:col-span-8" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:400px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#4ae176">reviews</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Recent Reviews</span>
+        <span id="local-reviews-status" style="font-size:10px;color:#8c909f"></span>
+      </div>
+      <div id="local-reviews-feed" style="color:#8c909f;font-size:13px">
+        Review data will appear after refresh.
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Review History -->
+  <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#4ae176">rate_review</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Full Review History</span>
+        <span id="local-full-reviews-status" style="font-size:10px;color:#8c909f"></span>
+      </div>
+      <button onclick="fetchFullReviewHistory(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;min-height:44px;white-space:nowrap">Fetch Full Review History</button>
+    </div>
+    <div id="local-full-reviews-feed" style="color:#8c909f;font-size:13px;max-height:600px;overflow-y:auto">
+      <div style="padding:16px;text-align:center">Click "Fetch Full Review History" to load all Google reviews (async, may take 30-60 seconds).</div>
+    </div>
+  </div>
+
+  <!-- Map Pack Rankings + Local Competitors -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+
+    <!-- Map Pack Rankings -->
+    <div class="lg:col-span-7" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;overflow-x:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">map</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Map Pack Rankings</span>
+      </div>
+      <div id="local-map-rankings" style="color:#8c909f;font-size:13px">
+        <div style="padding:20px;text-align:center">Map ranking data will appear after refresh.</div>
+      </div>
+    </div>
+
+    <!-- Local Competitors (from local_finder) -->
+    <div class="lg:col-span-5" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:400px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#ffb3ad">groups</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Local Competitors</span>
+      </div>
+      <div id="local-competitors" style="color:#8c909f;font-size:13px">
+        <div style="padding:16px;text-align:center">Competitor data will appear after refresh.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Q&A -->
+  <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">forum</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Google Q&A</span>
+      </div>
+      <button onclick="fetchGMBPosts(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;min-height:44px;white-space:nowrap">Fetch Google Q&A (~$0.01)</button>
+    </div>
+    <div id="local-gmb-posts" style="color:#8c909f;font-size:13px;max-height:600px;overflow-y:auto">
+      <div style="padding:16px;text-align:center">Click "Fetch Google Q&A" to load questions & answers from your Google Business listing.</div>
+    </div>
+  </div>
+
+  <!-- Business Details + Autocomplete -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+
+    <!-- Business Details -->
+    <div class="lg:col-span-8" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:400px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#4ae176">schedule</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Business Details</span>
+      </div>
+      <div id="local-biz-details" style="color:#8c909f;font-size:13px">
+        <div style="padding:16px;text-align:center">Business details will appear after refresh.</div>
+      </div>
+    </div>
+
+    <!-- Autocomplete Suggestions -->
+    <div class="lg:col-span-4" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:400px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">auto_awesome</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Autocomplete Suggestions</span>
+      </div>
+      <div id="local-autocomplete" style="color:#8c909f;font-size:13px">
+        Autocomplete data will appear after refresh.
+      </div>
+    </div>
+  </div>
+
+  <!-- Report History -->
+  <div style="margin-top:24px;background:#131318;border:1px solid rgba(66,71,84,0.15);border-radius:12px;overflow:hidden">
+    <div style="padding:12px 16px;border-bottom:1px solid rgba(66,71,84,0.1);display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleLocalHistory()">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-outlined" style="font-size:16px;color:#adc6ff">history</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Report History</span>
+        <span id="local-history-count" style="font-size:10px;color:#8c909f;background:#1f1f25;padding:2px 8px;border-radius:10px">0</span>
+      </div>
+      <span id="local-history-toggle" class="material-symbols-outlined" style="font-size:16px;color:#8c909f;transition:transform 0.2s">expand_more</span>
+    </div>
+    <div id="local-history-body" style="display:none;max-height:500px;overflow-y:auto"></div>
+  </div>
+
+</div>
+</div>
+
+<div id="view-content" class="view-panel">
+<div class="mb-4 md:mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+  <div>
+    <h2 class="text-xl md:text-3xl font-bold tracking-tight text-on-surface mb-1">Content and Brand Monitor</h2>
+    <p class="text-on-surface-variant text-xs md:text-sm">Track brand mentions, content performance, and sentiment across the web.</p>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <input id="content-brand-input" type="text" placeholder="Brand name (e.g. Contractor's Choice Agency)" style="background:#1f1f25;border:1px solid rgba(66,71,84,0.3);border-radius:8px;padding:10px 14px;color:#e4e1e9;font-size:13px;outline:none;flex:1;min-width:180px;min-height:44px">
+      <span id="last-updated-content" style="font-size:10px;color:#8c909f;white-space:nowrap"></span>
+      <button onclick="refreshContentMonitor(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;white-space:nowrap">Refresh (~$0.10)</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:10px;color:#8c909f">Results per search:</label>
+      <select id="content-page-size" style="background:#1f1f25;border:1px solid rgba(66,71,84,0.3);border-radius:6px;padding:4px 8px;color:#e4e1e9;font-size:11px;outline:none">
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div id="content-monitor-content" class="space-y-4 md:space-y-6">
+
+  <!-- KPI Row -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+    <!-- Mention Count KPI -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">campaign</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Mention Overview</span>
+      </div>
+      <div id="content-mention-count" style="color:#8c909f;font-size:14px">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:36px;font-weight:900;color:#e4e1e9;font-variant-numeric:tabular-nums">--</span>
+          <span style="font-size:12px;font-weight:600;color:#8c909f">total mentions</span>
+        </div>
+        <div style="font-size:12px;color:#8c909f;margin-top:8px">Enter a brand name and click Refresh to analyze.</div>
+      </div>
+    </div>
+
+    <!-- Sentiment Distribution -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#4ae176">sentiment_satisfied</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Sentiment Analysis</span>
+      </div>
+      <div id="content-sentiment" style="color:#8c909f;font-size:14px">
+        <div style="padding:16px;text-align:center">Sentiment data will appear after analysis.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rating Distribution + Brand Search Trend -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+    <!-- Mention Insights — derived from search results, no extra API cost -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">analytics</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Mention Insights</span>
+      </div>
+      <div id="content-mention-insights" style="color:#8c909f;font-size:13px">
+        <div style="padding:12px;text-align:center">Mention breakdown will appear after analysis.</div>
+      </div>
+    </div>
+
+    <!-- Source Type Breakdown -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">pie_chart</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Source Types</span>
+      </div>
+      <div id="content-source-types" style="color:#8c909f;font-size:13px">
+        <div style="padding:12px;text-align:center">Source type breakdown will appear after analysis.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Review Ratings Across the Web -->
+  <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">star_rate</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Review Ratings Across the Web</span>
+      </div>
+      <button onclick="scanContentRatings(this)" style="background:transparent;border:1px solid #35343a;color:#adc6ff;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;min-height:44px;white-space:nowrap">Scan Ratings (~$0.02)</button>
+    </div>
+    <div id="content-ratings-body" style="color:#8c909f;font-size:13px">
+      <div style="padding:16px;text-align:center">Click "Scan Ratings" to see how your brand is rated across the web.</div>
+    </div>
+  </div>
+
+  <!-- Mention Trends + Top Phrases -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+
+    <!-- Mention Trends Chart -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <h3 style="font-size:14px;font-weight:700;color:#e4e1e9;margin-bottom:4px">Mention Trends</h3>
+      <p style="font-size:10px;color:#8c909f;margin-bottom:12px">Brand mention volume over time</p>
+      <div id="chart-content-trends" style="min-height:200px"></div>
+    </div>
+
+    <!-- Phrase Trends -->
+    <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">trending_up</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Top Phrases</span>
+      </div>
+      <div id="content-phrase-trends" style="color:#8c909f;font-size:13px">
+        <div style="padding:12px;text-align:center">Phrase data will appear after analysis.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Top Citing Sources -->
+  <div style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">language</span>
+      <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Top Citing Sources</span>
+    </div>
+    <div id="content-top-sources" style="color:#8c909f;font-size:13px">
+      <div style="padding:12px;text-align:center">Sources that mention your brand will appear after analysis.</div>
+    </div>
+  </div>
+
+  <!-- Mentions Feed + News Feed -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+
+    <!-- Recent Mentions -->
+    <div class="lg:col-span-8" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:500px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff">article</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Recent Mentions</span>
+      </div>
+      <div id="content-mentions-feed" style="color:#8c909f;font-size:13px">
+        <div style="padding:20px;text-align:center">Brand mention data will appear after analysis.</div>
+      </div>
+    </div>
+
+    <!-- News Feed -->
+    <div class="lg:col-span-4" style="background:#131318;border:1px solid rgba(66,71,84,0.2);border-radius:12px;padding:20px;max-height:500px;overflow-y:auto">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <span class="material-symbols-outlined" style="font-size:20px;color:#f59e0b">newspaper</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">News Coverage</span>
+      </div>
+      <div id="content-news-feed" style="color:#8c909f;font-size:13px">
+        <div style="padding:16px;text-align:center">News data will appear after analysis.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report History -->
+  <div style="margin-top:24px;background:#131318;border:1px solid rgba(66,71,84,0.15);border-radius:12px;overflow:hidden">
+    <div style="padding:12px 16px;border-bottom:1px solid rgba(66,71,84,0.1);display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleContentHistory()">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-outlined" style="font-size:16px;color:#adc6ff">history</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8c909f">Report History</span>
+        <span id="content-history-count" style="font-size:10px;color:#8c909f;background:#1f1f25;padding:2px 8px;border-radius:10px">0</span>
+      </div>
+      <span id="content-history-toggle" class="material-symbols-outlined" style="font-size:16px;color:#8c909f;transition:transform 0.2s">expand_more</span>
+    </div>
+    <div id="content-history-body" style="display:none;max-height:500px;overflow-y:auto"></div>
+  </div>
+
+</div>
+</div>
+
+<!-- Add Project Modal -->
+<div id="add-project-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#1b1b20;border:1px solid rgba(66,71,84,0.3);border-radius:16px;padding:24px;width:90%;max-width:480px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="font-size:18px;font-weight:700;color:#e4e1e9">Add New Project</h3>
+      <button onclick="closeAddProject()" style="background:none;border:none;color:#8c909f;cursor:pointer;padding:4px"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Domain (required)</label>
+        <input id="add-proj-domain" type="text" placeholder="example.com" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Label</label>
+        <input id="add-proj-label" type="text" placeholder="My Website" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Location</label>
+        <input id="add-proj-location" type="text" placeholder="United States" value="United States" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Competitors (comma-separated)</label>
+        <input id="add-proj-competitors" type="text" placeholder="competitor1.com, competitor2.com" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">GMB Search (optional — auto-looked up from Brand Name)</label>
+        <input id="add-proj-gmb" type="text" placeholder="Override search term if different from brand name" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Brand / Business Name</label>
+        <input id="add-proj-brand" type="text" placeholder="e.g. Contractor's Choice Agency" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Phone</label>
+        <input id="add-proj-phone" type="tel" placeholder="(555) 123-4567" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Address</label>
+        <input id="add-proj-address" type="text" placeholder="123 Main St, City, State ZIP" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Business Category</label>
+        <input id="add-proj-category" type="text" placeholder="e.g. Insurance Agency" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;color:#8c909f;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Language</label>
+        <input id="add-proj-language" type="text" placeholder="English" value="English" style="width:100%;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none">
+      </div>
+      <button id="add-proj-submit" onclick="submitAddProject()" style="margin-top:8px;background:#adc6ff;color:#0e0e13;border:none;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;min-height:44px">Add Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- GMB Search/Connect Modal -->
+<div id="gmb-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+  <div style="background:#1b1b20;border:1px solid rgba(66,71,84,0.3);border-radius:16px;padding:24px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:18px;font-weight:700;color:#e4e1e9">Connect Google Business Profile</h3>
+      <button onclick="document.getElementById('gmb-modal').style.display='none'" style="background:none;border:none;color:#8c909f;cursor:pointer;padding:4px"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input id="gmb-search-input" type="text" placeholder="Search business name..." style="flex:1;background:#131318;border:1px solid rgba(66,71,84,0.3);border-radius:10px;padding:10px 14px;color:#e4e1e9;font-size:16px;outline:none;min-height:44px">
+      <button id="gmb-search-btn" onclick="doGMBSearch()" style="background:#adc6ff;color:#0e0e13;border:none;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:44px">Search (~$0.004)</button>
+    </div>
+    <div id="gmb-search-domain" style="display:none"></div>
+    <div id="gmb-results" style="color:#8c909f;font-size:13px;text-align:center;padding:16px">Enter a business name and click Search to find matching Google Business Profiles.</div>
+  </div>
+</div>
+
+</main>
+
+<!-- ============================================ -->
+<!-- BOTTOM NAV (Mobile only, hidden on desktop)  -->
+<!-- ============================================ -->
+<nav id="bottom-nav" class="fixed bottom-[25px] left-[25px] right-[25px] z-50 bg-[#1b1b20] border-t border-outline-variant/20 md:hidden rounded-b-xl" style="padding:3px 0 2px;overflow:hidden">
+  <!-- Row 1 -->
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0">
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="dashboard" onclick="nav('dashboard')">
+      <span class="material-symbols-outlined" style="font-size:18px">dashboard</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Home</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="projects" onclick="nav('projects')">
+      <span class="material-symbols-outlined" style="font-size:18px">folder</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Projects</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="domain" onclick="nav('domain')">
+      <span class="material-symbols-outlined" style="font-size:18px">domain</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Domain</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="position" onclick="nav('position')">
+      <span class="material-symbols-outlined" style="font-size:18px">monitoring</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Ranks</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="keywords" onclick="nav('keywords')">
+      <span class="material-symbols-outlined" style="font-size:18px">key</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Keywords</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="keyword-overview" onclick="nav('keyword-overview')">
+      <span class="material-symbols-outlined" style="font-size:18px">search</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">KW Info</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="keyword-gap" onclick="nav('keyword-gap')">
+      <span class="material-symbols-outlined" style="font-size:18px">compare_arrows</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Gap</span>
+    </a>
+  </div>
+  <!-- Row 2 -->
+  <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:0">
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="audit" onclick="nav('audit')">
+      <span class="material-symbols-outlined" style="font-size:18px">fact_check</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Audit</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="ai-visibility" onclick="nav('ai-visibility')">
+      <span class="material-symbols-outlined" style="font-size:18px">psychology</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">AI Vis</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="backlinks" onclick="nav('backlinks')">
+      <span class="material-symbols-outlined" style="font-size:18px">link</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Links</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="local" onclick="nav('local')">
+      <span class="material-symbols-outlined" style="font-size:18px">storefront</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Local</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" data-view="content" onclick="nav('content')">
+      <span class="material-symbols-outlined" style="font-size:18px">campaign</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Content</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1 text-on-surface-variant" onclick="toggleUsagePanel()">
+      <span class="material-symbols-outlined" style="font-size:18px">payments</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase">Costs</span>
+    </a>
+    <a class="nav-item flex flex-col items-center justify-center py-1" onclick="generateSEOReport(this)">
+      <span class="material-symbols-outlined" style="font-size:18px;color:#3b82f6">summarize</span>
+      <span style="font-size:8px;font-weight:700;text-transform:uppercase;color:#3b82f6">Report</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ============================================ -->
+<!-- JAVASCRIPT                                   -->
+<!-- ============================================ -->
+<!-- Bundled JS — all modules in one file -->
+<script src="/api/seo-platform/assets/seo-bundle.js"></script>
+</body>
+</html>

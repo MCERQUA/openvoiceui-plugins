@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta name="page-icon" content="settings"/>
+<title>SEO Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        surface: { DEFAULT: "#0e0e13", card: "#131318", raised: "#1a1a22" },
+        primary: { DEFAULT: "#adc6ff", dim: "#8eaadb" },
+        border: "rgba(66,71,84,0.2)"
+      },
+      fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] }
+    }
+  }
+};
+</script>
+<style>
+body { background: #0e0e13; color: #e4e1e9; font-family: Inter, system-ui, sans-serif; margin: 0; padding: 16px; }
+.card { background: #131318; border: 1px solid rgba(66,71,84,0.2); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+input[type="text"], input[type="password"], input[type="email"] {
+  width: 100%; background: #1a1a22; border: 1px solid rgba(66,71,84,0.3); border-radius: 8px;
+  padding: 12px 16px; color: #e4e1e9; font-size: 14px; outline: none;
+  min-height: 44px; font-family: inherit;
+}
+input:focus { border-color: #adc6ff; }
+.btn { background: #adc6ff; color: #0e0e13; border: none; border-radius: 8px; padding: 12px 24px;
+  font-size: 14px; font-weight: 700; cursor: pointer; min-height: 44px; }
+.btn:hover { background: #93b4f0; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-outline { background: transparent; border: 1px solid #35343a; color: #adc6ff; }
+.btn-outline:hover { background: rgba(173,198,255,0.08); }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 6px 12px; border-radius: 6px; }
+.status-ok { background: rgba(74,225,118,0.1); color: #4ae176; border: 1px solid rgba(74,225,118,0.2); }
+.status-err { background: rgba(255,179,173,0.1); color: #ffb3ad; border: 1px solid rgba(255,179,173,0.2); }
+.status-none { background: rgba(140,144,159,0.1); color: #8c909f; border: 1px solid rgba(140,144,159,0.2); }
+label { font-size: 12px; font-weight: 700; color: #8c909f; text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px; }
+.help { font-size: 12px; color: #64687a; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div style="max-width: 640px; margin: 0 auto;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <span class="material-symbols-outlined" style="font-size:28px;color:#adc6ff">settings</span>
+    <div>
+      <h1 style="font-size:20px;font-weight:800;margin:0;color:#e4e1e9">SEO Platform Settings</h1>
+      <p style="font-size:13px;color:#8c909f;margin:2px 0 0">Configure your DataForSEO API credentials</p>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:14px;font-weight:700;color:#e4e1e9">Connection Status</span>
+      <span id="status-badge" class="status status-none">Checking...</span>
+    </div>
+    <div id="status-details" style="font-size:13px;color:#8c909f"></div>
+  </div>
+
+  <!-- Credentials -->
+  <div class="card">
+    <h2 style="font-size:14px;font-weight:700;color:#e4e1e9;margin:0 0 16px">DataForSEO API Credentials</h2>
+
+    <div style="margin-bottom:16px">
+      <label for="dfs-login">Login (Email)</label>
+      <input type="email" id="dfs-login" placeholder="your@email.com"/>
+      <p class="help">Your DataForSEO account email. Sign up at <a href="https://dataforseo.com" target="_blank" style="color:#adc6ff">dataforseo.com</a></p>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label for="dfs-password">API Password</label>
+      <input type="password" id="dfs-password" placeholder="Your API password"/>
+      <p class="help">Found in DataForSEO Dashboard under API Access. This is NOT your account password.</p>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="saveCredentials(this)">Save & Test Connection</button>
+      <button class="btn btn-outline" onclick="testConnection(this)">Test Only</button>
+    </div>
+
+    <div id="save-result" style="margin-top:12px;font-size:13px;display:none"></div>
+  </div>
+
+  <!-- Account Info -->
+  <div class="card" id="account-card" style="display:none">
+    <h2 style="font-size:14px;font-weight:700;color:#e4e1e9;margin:0 0 12px">Account Balance</h2>
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <span id="balance-val" style="font-size:32px;font-weight:900;color:#4ae176">--</span>
+      <span style="font-size:13px;color:#8c909f">remaining</span>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="card" style="border-color:rgba(173,198,255,0.15)">
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <span class="material-symbols-outlined" style="font-size:20px;color:#adc6ff;flex-shrink:0">info</span>
+      <div style="font-size:13px;color:#8c909f;line-height:1.6">
+        <p style="margin:0 0 8px"><strong style="color:#e4e1e9">How it works:</strong> The SEO Platform proxies all requests through your server — your API credentials never leave the backend. All query results are automatically cached so repeat views are free.</p>
+        <p style="margin:0"><strong style="color:#e4e1e9">Pricing:</strong> DataForSEO is pay-as-you-go. Most calls cost $0.001-$0.10. A typical domain analysis runs ~$0.09. <a href="https://dataforseo.com/pricing" target="_blank" style="color:#adc6ff">See full pricing</a></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var API = '/api/seo-platform';
+
+async function loadStatus() {
+  try {
+    var r = await fetch(API + '/config');
+    var data = await r.json();
+    var badge = document.getElementById('status-badge');
+    var details = document.getElementById('status-details');
+
+    if (data.has_credentials) {
+      if (data.source === 'env') {
+        badge.className = 'status status-ok';
+        badge.textContent = 'Connected (Platform Keys)';
+        details.innerHTML = 'Using platform-provided API credentials. No configuration needed.';
+        // Hide credential form for platform users
+        document.getElementById('dfs-login').closest('.card').style.display = 'none';
+      } else {
+        badge.className = 'status status-ok';
+        badge.textContent = 'Connected';
+        details.innerHTML = 'Credentials configured. Source: plugin settings.';
+        if (data.login) document.getElementById('dfs-login').value = data.login;
+      }
+      loadBalance();
+    } else {
+      badge.className = 'status status-err';
+      badge.textContent = 'Not Configured';
+      details.innerHTML = 'Enter your DataForSEO credentials below to get started.';
+    }
+  } catch(e) {
+    document.getElementById('status-badge').className = 'status status-err';
+    document.getElementById('status-badge').textContent = 'Error';
+    document.getElementById('status-details').textContent = 'Could not reach plugin API: ' + e.message;
+  }
+}
+
+async function loadBalance() {
+  try {
+    var r = await fetch(API + '/user');
+    if (r.ok) {
+      var data = await r.json();
+      var balance = data.money?.balance || 0;
+      document.getElementById('balance-val').textContent = '$' + balance.toFixed(2);
+      document.getElementById('account-card').style.display = '';
+    }
+  } catch(e) { /* silent */ }
+}
+
+async function saveCredentials(btn) {
+  var login = document.getElementById('dfs-login').value.trim();
+  var password = document.getElementById('dfs-password').value.trim();
+  var result = document.getElementById('save-result');
+
+  if (!login || !password) {
+    result.style.display = '';
+    result.style.color = '#ffb3ad';
+    result.textContent = 'Both login and password are required.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+
+  try {
+    var r = await fetch(API + '/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password })
+    });
+    var data = await r.json();
+    result.style.display = '';
+
+    if (data.ok) {
+      result.style.color = '#4ae176';
+      result.textContent = 'Saved! Balance: $' + (data.balance || 0).toFixed(2);
+      loadStatus();
+    } else {
+      result.style.color = '#ffb3ad';
+      result.textContent = 'Connection failed: ' + (data.message || 'Unknown error');
+    }
+  } catch(e) {
+    result.style.display = '';
+    result.style.color = '#ffb3ad';
+    result.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save & Test Connection';
+  }
+}
+
+async function testConnection(btn) {
+  btn.disabled = true;
+  btn.textContent = 'Testing...';
+  var result = document.getElementById('save-result');
+
+  try {
+    var r = await fetch(API + '/config/test', { method: 'POST' });
+    var data = await r.json();
+    result.style.display = '';
+
+    if (data.ok) {
+      result.style.color = '#4ae176';
+      result.textContent = 'Connection OK. Balance: $' + (data.balance || 0).toFixed(2);
+    } else {
+      result.style.color = '#ffb3ad';
+      result.textContent = 'Failed: ' + (data.message || 'Unknown error');
+    }
+  } catch(e) {
+    result.style.display = '';
+    result.style.color = '#ffb3ad';
+    result.textContent = 'Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test Only';
+  }
+}
+
+loadStatus();
+</script>
+</body>
+</html>

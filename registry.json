@@ -49,6 +49,14 @@
       "description": "Audio-reactive MIDI visualizer. Streams microphone audio into midiviz.com for real-time sound visualization.",
       "type": "page",
       "author": "jambot"
+    },
+    {
+      "id": "seo-platform",
+      "name": "SEO Platform",
+      "version": "1.0.0",
+      "description": "Full SEO dashboard powered by DataForSEO — keyword research, rank tracking, backlink analysis, site audits, AI visibility, local SEO, and brand monitoring.",
+      "type": "page",
+      "author": "jambot"
     }
   ]
 }
