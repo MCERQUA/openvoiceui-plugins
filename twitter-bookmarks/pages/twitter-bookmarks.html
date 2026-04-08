@@ -154,7 +154,7 @@
 <!-- ─── Main Content ────────────────────────────────────────── -->
 <main id="main" class="list-view" style="max-width: 1200px; margin: 0 auto; padding: 12px 16px 80px;">
   <!-- Loading skeletons -->
-  <div id="skeleton" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+  <div id="skeleton" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;">
     <div class="skel" style="height: 120px;"></div>
     <div class="skel" style="height: 120px;"></div>
     <div class="skel" style="height: 120px;"></div>
@@ -166,7 +166,7 @@
     <button onclick="syncNow()" style="background: #1d4ed8; color: white; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;">Sync Bookmarks</button>
   </div>
   <!-- Bookmark grid -->
-  <div id="grid" style="display: grid; grid-template-columns: 1fr; gap: 10px;"></div>
+  <div id="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;"></div>
   <!-- Load more -->
   <div id="load-more-wrap" style="display: none; text-align: center; padding: 20px;">
     <button onclick="loadMore()" style="background: #141620; border: 1px solid #1a1d2a; border-radius: 8px; padding: 10px 24px; color: #94a3b8; font-size: 13px; cursor: pointer; transition: all 0.15s;" onmouseover="this.style.borderColor='#3b82f6'" onmouseout="this.style.borderColor='#1a1d2a'" id="load-more-btn">Load More</button>
@@ -304,6 +304,9 @@ function renderGrid(bookmarks, append) {
   if (!append) grid.innerHTML = '';
 
   for (const bm of bookmarks) {
+    // Skip non-English bookmarks in default view
+    if (bm.lang === 'cjk') continue;
+
     const card = document.createElement('div');
     card.className = 'bm-card';
     card.onclick = () => openDetail(bm.id);
@@ -316,9 +319,13 @@ function renderGrid(bookmarks, append) {
     const statusClass = bm.research_status === 'done' ? 'status-done' : 'status-pending';
     const priHtml = bm.research_priority ? `<span class="tag pri-${bm.research_priority}" style="font-size:10px;padding:2px 7px;">${bm.research_priority}</span>` : '';
 
-    const text = (bm.text || '').replace(/https:\/\/t\.co\/\w+/g, '').trim();
-    const truncated = text.length > 500 ? text.slice(0, 500) + '...' : text;
+    const rawText = (bm.text || '').trim();
+    const truncated = rawText.length > 280 ? rawText.slice(0, 280) + '...' : rawText;
     const hasLinks = (bm.links || []).length > 0;
+    const isNonEnglish = bm.lang === 'cjk';
+
+    // Title: use stored title, or generate client-side
+    const title = bm.title || getTitle(text);
 
     const researchBtnId = `res-btn-${bm.id}`;
     const researchBtnHtml = bm.research_status === 'done'
@@ -329,14 +336,17 @@ function renderGrid(bookmarks, append) {
 
     card.innerHTML = `
       <div style="padding: 16px 18px;">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
           <div class="status-dot ${statusClass}" title="${bm.research_status === 'done' ? 'Researched' : 'Pending'}"></div>
-          <span style="font-size: 13px; font-weight: 600; color: #3b82f6;">@${bm.author || 'unknown'}</span>
-          <span style="font-size: 11px; color: #4a5568;">${bm.author_name || ''}</span>
-          <span style="font-size: 11px; color: #334155; margin-left: auto;">${timeAgo(bm.posted_at || bm.synced_at)}</span>
+          <span style="font-size: 15px; font-weight: 700; color: #e2e8f0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escHtml(title)}</span>
+          ${isNonEnglish ? '<span style="font-size:10px;padding:2px 7px;background:#1a1a0a;color:#fbbf24;border:1px solid #713f12;border-radius:12px;">non-EN</span>' : ''}
+          <span style="font-size: 11px; color: #334155; flex-shrink: 0;">${timeAgo(bm.posted_at || bm.synced_at)}</span>
         </div>
-        <p style="margin: 0 0 10px; font-size: 14px; color: #cbd5e1; line-height: 1.6;">${escHtml(truncated)}</p>
-        ${hasLinks ? `<div style="margin-bottom: 8px;"><span style="font-size: 11px; color: #3b82f6;">${bm.links.length} link${bm.links.length > 1 ? 's' : ''}</span></div>` : ''}
+        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 600; color: #3b82f6;">@${bm.author || 'unknown'}</span>
+          <span style="font-size: 11px; color: #4a5568;">${bm.author_name || ''}</span>
+        </div>
+        <p style="margin: 0 0 10px; font-size: 13px; color: #94a3b8; line-height: 1.5;">${linkify(truncated, bm.links)}</p>
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           ${tagHtml}${priHtml}
           <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
@@ -435,7 +445,7 @@ async function openDetail(id) {
 
       <!-- Full tweet text -->
       <div class="research-section">
-        <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.7; white-space: pre-wrap;">${escHtml(bm.text || '')}</p>
+        <p style="margin: 0; font-size: 15px; color: #e2e8f0; line-height: 1.7; white-space: pre-wrap;">${linkify(bm.text || '', bm.links)}</p>
       </div>
 
       <!-- Engagement row -->
@@ -471,6 +481,33 @@ async function openDetail(id) {
 
 function buildResearchHtml(r, bm) {
   let html = '';
+
+  // Official links — actionable buttons at the top
+  const olinks = r.official_links || [];
+  if (olinks.length > 0) {
+    const typeStyles = {
+      docs: {bg: '#0c2d48', border: '#1e5a8a', color: '#60a5fa', label: 'Documentation'},
+      install: {bg: '#0c3521', border: '#166534', color: '#4ade80', label: 'Install / Setup'},
+      pricing: {bg: '#3b2506', border: '#854d0e', color: '#fbbf24', label: 'Pricing'},
+      github: {bg: '#1a1a2e', border: '#334155', color: '#94a3b8', label: 'GitHub'},
+    };
+    html += `<div class="research-section" style="border-color:#1e5a8a;">`;
+    html += `<div class="research-label" style="color:#60a5fa;">Official Links</div>`;
+    for (const ol of olinks) {
+      const st = typeStyles[ol.link_type] || typeStyles.docs;
+      const domain = (ol.url.match(/https?:\/\/([^/]+)/)||[])[1] || '';
+      html += `
+        <a href="${escAttr(ol.url)}" target="_blank" rel="noopener" style="display:block;background:${st.bg};border:1px solid ${st.border};border-radius:8px;padding:12px 14px;margin-bottom:8px;text-decoration:none;transition:border-color 0.15s;" onmouseover="this.style.borderColor='${st.color}'" onmouseout="this.style.borderColor='${st.border}'">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:${st.color};background:${st.bg};border:1px solid ${st.border};padding:2px 8px;border-radius:4px;">${st.label}</span>
+            <span style="font-size:11px;color:#4a5568;margin-left:auto;">${escHtml(domain)}</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:2px;">${escHtml(ol.title || domain)}</div>
+          ${ol.snippet ? `<div style="font-size:12px;color:#94a3b8;line-height:1.4;">${escHtml(ol.snippet)}</div>` : ''}
+        </a>`;
+    }
+    html += `</div>`;
+  }
 
   // What it is
   if (r.what_it_is) {
@@ -671,7 +708,58 @@ function debouncedSearch() {
 }
 
 // ── Helpers ──
+function getTitle(text) {
+  let clean = text.replace(/https?:\/\/\S+/g, '').replace(/@\w+/g, '').replace(/\*\*([^*]+)\*\*/g, '$1');
+  clean = clean.replace(/[^\w\s\-/.$#]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!clean) return 'Shared Link';
+  // Check known compound names
+  const lower = clean.toLowerCase();
+  const known = ['claude code','mcp server','seo pages','ai agent','domain authority','open source','x bookmarks'];
+  for (const n of known) { if (lower.includes(n)) return n.split(' ').map(w=>w[0].toUpperCase()+w.slice(1)).join(' '); }
+  const skip = new Set(['the','a','an','this','that','just','i','my','we','so','if','is','its',"it's","here's",'here','how','what','you','your','get','breaking','someone','built','huge','sharing','friendly','reminder','free','new','and','but','for','with','to','of','in','on','at','by','or','not','are','was','were','been','be','have','has','had','do','does','did','will','top','best','now','today','ever','every','why']);
+  const out = [];
+  for (const w of clean.split(/\s+/)) {
+    const wc = w.replace(/[^\w\-/.$#]/g, '');
+    if (!wc || skip.has(wc.toLowerCase())) continue;
+    out.push(wc);
+    if (out.length >= 3) break;
+  }
+  if (out.length) return out.join(' ').slice(0, 40);
+  const fb = clean.split(/\s+/).filter(w => w.replace(/[^\w]/g, '')).slice(0, 3);
+  return fb.join(' ').slice(0, 40);
+}
+
 function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function linkify(text, links) {
+  // First escape HTML
+  let html = escHtml(text);
+  // Map t.co URLs to expanded links by position
+  const tcoUrls = text.match(/https?:\/\/t\.co\/\w+/g) || [];
+  const expandedMap = {};
+  if (links && links.length) {
+    tcoUrls.forEach((tco, i) => {
+      if (links[i]) expandedMap[escHtml(tco)] = links[i];
+    });
+  }
+  // Replace t.co links: show expanded URL if available, otherwise strip them (dead weight)
+  for (const tco of tcoUrls.map(u => escHtml(u))) {
+    if (expandedMap[tco]) {
+      const expanded = expandedMap[tco];
+      const display = expanded.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
+      html = html.replace(tco, `<a href="${escAttr(expanded)}" target="_blank" rel="noopener" style="color:#3b82f6;text-decoration:none;word-break:break-all;" onclick="event.stopPropagation()">${escHtml(display)}</a>`);
+    } else {
+      // No expanded URL — strip the useless t.co link
+      html = html.replace(tco, '');
+    }
+  }
+  // Linkify any remaining non-t.co URLs
+  html = html.replace(/https?:\/\/(?!t\.co)[^\s<]+/g, (url) => {
+    const display = url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 60);
+    return `<a href="${escAttr(url)}" target="_blank" rel="noopener" style="color:#3b82f6;text-decoration:none;word-break:break-all;" onclick="event.stopPropagation()">${display}</a>`;
+  });
+  return html;
+}
 function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function fmtNum(n) {
@@ -698,15 +786,7 @@ function timeAgo(dateStr) {
   return d.toLocaleDateString();
 }
 
-// ── Responsive grid ──
-function updateGrid() {
-  const grid = document.getElementById('grid');
-  const w = window.innerWidth;
-  if (w >= 1200) grid.style.gridTemplateColumns = 'repeat(3, 1fr)';
-  else if (w >= 640) grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
-  else grid.style.gridTemplateColumns = '1fr';
-}
-window.addEventListener('resize', updateGrid);
+// Grid is pure CSS: repeat(auto-fill, minmax(300px, 1fr)) — no JS needed
 
 // ── Keyboard ──
 document.addEventListener('keydown', e => {
@@ -717,7 +797,6 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Start ──
-updateGrid();
 init();
 </script>
 </body>

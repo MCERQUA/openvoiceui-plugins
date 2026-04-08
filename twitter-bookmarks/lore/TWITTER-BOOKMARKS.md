@@ -53,7 +53,16 @@ Content-Type: application/json
     "title": "Name of the linked content",
     "url": "https://...",
     "description": "What it does"
-  }
+  },
+  "official_links": [
+    {
+      "url": "https://docs.example.com/getting-started",
+      "title": "Page title",
+      "snippet": "Brief description from search result",
+      "link_type": "docs|install|pricing|github",
+      "product": "ProductName"
+    }
+  ]
 }
 ```
 
