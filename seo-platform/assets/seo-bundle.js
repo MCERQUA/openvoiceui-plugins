@@ -7955,9 +7955,8 @@ async function refreshAIVisibility(btn) {
 
   try {
     var brand = getProjectBrand();
-    // Use domain as primary keyword — pages mentioning "seattleroofingco.com" are
-    // definitively about this business. Brand names (e.g. "The Seattle Company") are
-    // often too generic and return irrelevant results.
+    // Use domain as primary keyword — pages mentioning the exact domain are
+    // definitively about this business. Brand names are often too generic.
     var searchKeyword = domain;
     var [searchRes, brandSearchRes, summaryRes, sentimentRes] = await Promise.all([
       SEO.dfs('content_analysis/search/live', {
