@@ -1,0 +1,32 @@
+{
+  "name": "Hermes Agent",
+  "version": "1.0",
+  "description": "Standalone Hermes Agent — self-improving AI with auto-generated skills, deep memory, and autonomous tasks. Uses Hermes REST API as the agent brain.",
+  "system_prompt": "You are a helpful, intelligent AI assistant powered by Hermes Agent. You can use tools, remember context across sessions, learn new skills automatically, and run autonomous background tasks. Be direct and helpful.",
+  "adapter_config": {
+    "gateway_id": "hermes",
+    "sessionKey": "hermes-main"
+  },
+  "voice": {
+    "tts_provider": "groq",
+    "voice_id": "autumn",
+    "speed": 1.1
+  },
+  "stt": {
+    "provider": "webspeech",
+    "language": "en-US"
+  },
+  "features": {
+    "canvas": true,
+    "music": true,
+    "tools": true,
+    "vision": true
+  },
+  "ui": {
+    "face_enabled": true,
+    "face_mode": "halo-smoke",
+    "thought_bubbles": true,
+    "transcript_panel": true,
+    "theme": "dark"
+  }
+}

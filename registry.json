@@ -22,9 +22,11 @@
       "id": "hermes-agent",
       "name": "Hermes Agent",
       "version": "1.0.0",
-      "description": "Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks. Adds two new agent modes.",
+      "description": "Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks. Full voice support via Hermes REST API.",
       "type": "gateway",
-      "author": "Nous Research / JamBot"
+      "author": "Nous Research / OpenVoiceUI",
+      "hermes_version": "0.6.0",
+      "container_image": "nousresearch/hermes-agent:v0.6.0"
     },
     {
       "id": "twenty-crm",
