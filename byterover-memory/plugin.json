@@ -2,7 +2,7 @@
   "id": "byterover-memory",
   "name": "ByteRover Long-Term Memory",
   "version": "1.0.0",
-  "description": "Persistent long-term memory via ByteRover context engine. Curates conversation knowledge every turn into a human-readable markdown knowledge base. Installs into the client's OpenClaw container -- enable or disable per client. Each client gets their own independent context tree.",
+  "description": "Persistent long-term memory via ByteRover context engine. Curates conversation knowledge every turn into a human-readable markdown knowledge base that persists across sessions.",
   "author": "OpenVoiceUI",
   "type": "openclaw-extension",
   "license": "MIT",

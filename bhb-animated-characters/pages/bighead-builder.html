@@ -545,7 +545,7 @@
 
         let prompt = '';
         if (field === 'name') {
-            prompt = `Generate ONE funny unique character name for a BigHead cartoon character. Just the name, nothing else. Be creative — mix unexpected words. Examples: "Gravel Pete", "DJ Skullcap", "Baron Von Cheeseburger". The character looks like: ${appearance}. Reply with ONLY the name.`;
+            prompt = `Generate ONE funny unique character name for a BigHead cartoon character. Just the name, nothing else. Be creative — mix unexpected words like a cartoon show writer would. Examples: "Gravel Pete", "DJ Skullcap", "Baron Von Cheeseburger", "Stitches McGee", "Lil Brisket". IMPORTANT: Do NOT use any of these trait labels as the name: ${appearance}. Create a completely ORIGINAL name that has nothing to do with those labels. Reply with ONLY the name, 1-3 words max.`;
         } else if (field === 'personality') {
             prompt = `Write a personality description for a cartoon character named "${name}" with a "${archLabel}" archetype. Include: tone of voice, speech patterns, verbal tics, things they'd never say, and how they react under pressure. Be specific and funny. Keep it under 150 words. Don't use bullet points — write it as a flowing description.`;
         } else if (field === 'backstory') {
@@ -806,18 +806,7 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
         btn.textContent = STEP_LABELS[step];
         btn.className = step === 3 ? 'btn btn-create' : 'btn btn-next';
 
-        if (step === 2) {
-            loadVoices();
-            // Show pre-selected voice banner if editing
-            if (selectedVoice) {
-                const banner = document.getElementById('voiceSelection');
-                if (banner) {
-                    banner.style.display = '';
-                    document.getElementById('voiceSelName').textContent = selectedVoice.name;
-                    document.getElementById('voiceSelProvider').textContent = `(${selectedVoice.provider})`;
-                }
-            }
-        }
+        if (step === 2) loadVoices();
         if (step === 3) buildReview();
     };
     window.nextStep = function() {
@@ -912,7 +901,7 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
         } catch(e) { showToast('Failed to save profile: ' + e.message); return; }
 
         // Save BigHead visual config
-        const charData = { ...traitsCfg, name, id, female: false, archetype: selectedArch, voiceProvider: voice.provider, voiceId: voice.id, personality, backstory };
+        const charData = { ...traitsCfg, name, id, female: false, archetype: selectedArch, voiceProvider: voice.provider, voiceId: voice.id };
         try {
             await fetch('/api/bighead/characters', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -962,16 +951,8 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
     }
 
     // ── Gallery ──
-    let _profileIds = new Set();
     async function loadSavedCharacters() {
         try {
-            // Fetch existing profiles so we know which characters are already agents
-            try {
-                const pr = await fetch('/api/profiles');
-                const pd = await pr.json();
-                _profileIds = new Set((pd.profiles || []).map(p => p.id));
-            } catch(e) { _profileIds = new Set(); }
-
             const res = await fetch('/api/bighead/characters');
             if (!res.ok) return;
             savedChars = await res.json();
@@ -990,14 +971,10 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
 
                 const info = document.createElement('div');
                 info.className = 'char-card-info';
-                // Check if this character already has a profile (agent) created
-                const hasProfile = _profileIds.has(ch.id);
                 info.innerHTML = `<div class="char-card-name">${ch.name || 'Unnamed'}</div>
                     <div class="char-card-arch">${ch.archetype || ''}</div>
                     <div class="char-card-actions">
-                        ${hasProfile
-                            ? '<span style="font-family:Courier New,monospace;font-size:0.6em;color:#00c86e;font-weight:700;text-transform:uppercase;">In Agent List</span>'
-                            : `<button class="char-card-btn use" data-id="${ch.id}">Add to Agents</button>`}
+                        <button class="char-card-btn use" data-id="${ch.id}">Use</button>
                         <button class="char-card-btn" data-edit="${ch.id}">Edit</button>
                         <button class="char-card-btn" data-delete="${ch.id}" style="background:#ff3b3b;color:#fef9ee;">Del</button>
                     </div>`;
@@ -1012,52 +989,21 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
                 });
                 renderCanvas(mini, ts);
 
-                // "Add to Agents" button — creates a profile with face_config embedded
-                const useBtn = info.querySelector('.use');
-                if (useBtn) {
-                    useBtn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        const traitsCfg = {};
-                        DISPLAY_ORDER.forEach(c => { if (ch[c]) traitsCfg[c] = ch[c]; });
-                        traitsCfg.female = ch.female || false;
-
-                        const profile = {
-                            id: ch.id, name: ch.name || 'Unnamed',
-                            description: `BigHead character: ${ch.name}`, version: '1.0',
-                            system_prompt: `You ARE ${ch.name}. Stay in character always. Never break character. Never act like an assistant. Swear naturally if it fits.\n\nFACIAL EXPRESSIONS: Use [MOOD:happy] [MOOD:sad] [MOOD:angry] [MOOD:surprised] [MOOD:thinking] [MOOD:neutral] tags inline with your speech.`,
-                            llm: { provider: 'gateway', model: 'glm-4.7', parameters: { max_tokens: 256, temperature: 0.8 }, queue: { mode: 'steer', block_streaming_chunk: 60 } },
-                            voice: { tts_provider: ch.voiceProvider || 'supertonic', voice_id: ch.voiceId || 'M1', speed: 1.0 },
-                            stt: { provider: 'deepgram', language: 'en-US', silence_timeout_ms: 3500, continuous: true, wake_words: ['wake up'] },
-                            context: { enable_fts: true, enable_briefing: false, enable_history: true, max_history_messages: 8 },
-                            features: { canvas: true, vision: true, music: false, tools: true },
-                            ui: { theme: 'dark', theme_preset: 'blue', face_enabled: true, face_mode: 'bighead', face_config: traitsCfg, face_mood: 'neutral', transcript_panel: true, thought_bubbles: false, show_mode_badge: true, mode_badge_text: ch.name },
-                            conversation: { interruption_enabled: true, max_response_chars: 1500 },
-                            modes: { normal: true, listen: true, ptt: true, a2a: false },
-                            session: { key_strategy: 'persistent', key_prefix: `voice-${ch.id}` },
-                            adapter_config: { sessionKey: `voice-${ch.id}-1`, agentId: ch.id }
-                        };
-                        try {
-                            let r = await fetch('/api/profiles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) });
-                            if (r.status === 409) {
-                                r = await fetch(`/api/profiles/${ch.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(profile) });
-                            }
-                            if (r.ok || r.status === 201) {
-                                showToast(`${ch.name} added to agents!`);
-                                try { window.parent?.postMessage({ type: 'profile-created', profileId: ch.id }, '*'); } catch(e) {}
-                                loadSavedCharacters(); // Refresh to show "In Agent List"
-                            } else {
-                                const err = await r.json();
-                                showToast('Error: ' + (err.error || 'Failed'));
-                            }
-                        } catch(err) { showToast('Failed: ' + err.message); }
-                    });
-                }
+                // Use button
+                info.querySelector('.use').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await fetch('/api/bighead/active', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ch) });
+                        // Activate profile
+                        if (ch.id) await fetch('/api/profiles/activate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: ch.id }) });
+                        showToast(`Switched to ${ch.name}`);
+                        try { if (window.parent?.BigHeadFace) window.parent.BigHeadFace.setCharacter(ch); } catch(e) {}
+                    } catch(e) { showToast('Error: ' + e.message); }
+                });
 
                 // Edit = load ALL character + profile data into builder
                 info.querySelector('[data-edit]').addEventListener('click', async (e) => {
                     e.stopPropagation();
-
-                    // 1. Visual traits (step 0)
                     DISPLAY_ORDER.forEach(c => {
                         const idx = TRAITS[c].indexOf(ch[c]);
                         if (idx >= 0) state[c] = idx;
@@ -1068,44 +1014,46 @@ Be wildly creative — sitcom-level absurd. NOT generic phobia names. Think spec
                         if (x) x.textContent = `${state[c]+1}/${TRAITS[c].length}`;
                     });
                     render();
-
-                    // 2. Name + archetype + personality + backstory (from character data)
-                    document.getElementById('charName').value = ch.name || '';
-                    document.getElementById('charPersonality').value = ch.personality || '';
-                    document.getElementById('charBackstory').value = ch.backstory || '';
+                    if (ch.name) document.getElementById('charName').value = ch.name;
                     if (ch.archetype) {
                         selectedArch = ch.archetype;
                         document.querySelectorAll('.arch-card').forEach(ac => {
                             ac.classList.toggle('active', ac.dataset.arch === ch.archetype);
                         });
                     }
-
-                    // 3. Voice from character data
-                    if (ch.voiceId) {
+                    try {
+                        const profRes = await fetch(`/api/profiles/${ch.id}`);
+                        if (profRes.ok) {
+                            const prof = await profRes.json();
+                            const sp = prof.system_prompt || '';
+                            const persMatch = sp.match(/PERSONALITY:\s*([\s\S]*?)(?:\n\n[A-Z]|\nFACIAL|\nCORE|\nHOW|\nYOUR|$)/);
+                            if (persMatch) document.getElementById('charPersonality').value = persMatch[1].trim();
+                            const backMatch = sp.match(/BACKSTORY:\s*([\s\S]*?)(?:\n\n[A-Z]|\nFACIAL|$)/);
+                            if (backMatch) document.getElementById('charBackstory').value = backMatch[1].trim();
+                            if (!persMatch && !backMatch && sp.length > 50) {
+                                const lines = sp.split('\n').filter(l => l.trim());
+                                if (lines.length > 1) document.getElementById('charPersonality').value = lines.slice(1).join('\n').trim();
+                            }
+                            if (prof.voice?.voice_id) {
+                                selectedVoice = { id: prof.voice.voice_id, name: prof.voice.voice_id, provider: prof.voice.tts_provider || 'supertonic' };
+                            }
+                        }
+                    } catch(err) {}
+                    if (!selectedVoice && ch.voiceId) {
                         selectedVoice = { id: ch.voiceId, name: ch.voiceId, provider: ch.voiceProvider || 'supertonic' };
                     }
-
                     goStep(0);
                 });
 
-                // Delete button — no confirm() (blocked in iframes), double-click to delete
-                const delBtn = info.querySelector('[data-delete]');
-                let _delClick = 0;
-                delBtn.addEventListener('click', async (e) => {
+                // Delete button
+                info.querySelector('[data-delete]').addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    _delClick++;
-                    if (_delClick === 1) {
-                        delBtn.textContent = 'Sure?';
-                        delBtn.style.boxShadow = '0 0 8px #ff3b3b';
-                        setTimeout(() => { _delClick = 0; delBtn.textContent = 'Del'; delBtn.style.boxShadow = ''; }, 3000);
-                        return;
-                    }
-                    // Second click = confirmed
+                    if (!confirm(`Delete "${ch.name}"? This cannot be undone.`)) return;
                     try {
                         await fetch(`/api/bighead/characters/${ch.id}`, { method: 'DELETE' });
                         await fetch(`/api/profiles/${ch.id}`, { method: 'DELETE' });
                         showToast(`Deleted ${ch.name}`);
-                        try { window.parent?.postMessage({ type: 'profile-created', profileId: 'default' }, '*'); } catch(e) {}
+                        try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'profile-created', profileId: 'default' }, '*'); } catch(e) {}
                         loadSavedCharacters();
                     } catch(err) { showToast('Delete failed: ' + err.message); }
                 });
