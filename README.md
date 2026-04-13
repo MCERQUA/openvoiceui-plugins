@@ -18,7 +18,6 @@ A plugin is a folder with a `plugin.json` manifest and the files it provides. Pl
 | Plugin | Type | Description | Author |
 |--------|------|-------------|--------|
 | [BHB Animated Characters](bhb-animated-characters/) | face | Animated BigHead Billionaires character avatars with lip-sync, mood expressions, character builder, and show lore | bhaleyart |
-| [ByteRover Long-Term Memory](byterover-memory/) | openclaw-extension | Persistent long-term memory via ByteRover context engine. Curates knowledge every turn into a markdown knowledge base | OpenVoiceUI |
 | [Hermes Agent](hermes-agent/) | gateway | Self-improving AI agent with auto-generated skills, deep memory search, and autonomous tasks | Nous Research / JamBot |
 | [MidiViz Audio Visualizer](midiviz/) | page | Audio-reactive MIDI visualizer. Streams microphone audio into midiviz.com for real-time sound visualization | jambot |
 | [Twenty CRM](twenty-crm/) | page | Connect to a Twenty CRM instance for contact, company, deal, and task management. Includes embedded CRM view and setup wizard | jambot |
