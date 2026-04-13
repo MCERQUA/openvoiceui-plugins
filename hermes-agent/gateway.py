@@ -87,10 +87,37 @@ def _parse_tool_marker(text: str):
     return emoji, tool_name, detail
 
 
+_LINE_EMOJI_RE = re.compile(
+    r"^(" + "|".join(re.escape(e) for e in EMOJI_TOOL_MAP) + r")\s+(.+?)$",
+    re.MULTILINE,
+)
+
+
 def _strip_tool_markers(text: str) -> str:
-    """Remove all tool marker backtick spans from text, including surrounding newlines."""
-    # Remove the marker itself
+    """Clean tool markers from response text so transcript stays readable.
+
+    Two forms of marker exist:
+      1. Backtick-wrapped:  `💻 hostname`    — stripped entirely (the proper
+                                               form, captured via action events)
+      2. Bare line:         💻 long command  — TRUNCATED to ~40 chars so the
+                                               transcript shows that a tool ran
+                                               without getting buried in huge
+                                               multi-line shell invocations.
+                                               The Action Console panel shows
+                                               the full command verbose.
+    """
+    # Form 1 — backticked markers get stripped from text entirely
     cleaned = TOOL_MARKER_RE.sub("", text)
+
+    # Form 2 — bare-line markers get truncated in place
+    def _truncate_line(m):
+        emoji = m.group(1)
+        detail = m.group(2).strip()
+        if len(detail) > 40:
+            detail = detail[:40].rstrip() + "…"
+        return f"{emoji} {detail}"
+    cleaned = _LINE_EMOJI_RE.sub(_truncate_line, cleaned)
+
     # Collapse runs of blank lines left behind
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
     return cleaned
