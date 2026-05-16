@@ -38,6 +38,39 @@ HERMES_API_URL = f"{HERMES_BASE_URL}/v1/chat/completions"
 # Timeout for Hermes API calls (seconds)
 HERMES_TIMEOUT = int(os.getenv("HERMES_TIMEOUT", "300"))
 
+# Bearer key for the Hermes API server. v0.10+ enforces this when Hermes binds
+# to a non-loopback address (which JamBot tenants always do — 0.0.0.0:18790).
+# The hermes container mints the key on first boot and writes it to its /opt/data/.env;
+# the JamBot provisioner plumbs that value to this OVU container as HERMES_API_KEY.
+# When unset (e.g. tenant on Hermes <= v0.9 or local dev with API_SERVER_HOST=127.0.0.1)
+# the header is omitted so older deployments keep working.
+HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
+
+# Tenant identifier for X-Hermes-Session-Key (v0.13+ long-term memory scoping).
+# JAMBOT_TENANT is set on every OVU container by docker-compose (e.g. "test-dev").
+# Falls back to empty so single-tenant self-hosters who don't set it just omit the header.
+HERMES_TENANT_SESSION_KEY = os.getenv("JAMBOT_TENANT", "")
+
+
+def _hermes_headers(session_id: str = "", session_key: str = "") -> dict:
+    """Build headers for every Hermes API call.
+
+    - Authorization Bearer when HERMES_API_KEY is set (v0.10+ requirement).
+    - X-Hermes-Session-Id pins per-conversation continuity (v0.7+).
+    - X-Hermes-Session-Key scopes long-term memory per tenant (v0.13+).
+
+    All three are optional from Hermes's perspective; missing values are simply
+    not sent. Older Hermes versions ignore unknown headers.
+    """
+    headers = {"Content-Type": "application/json"}
+    if HERMES_API_KEY:
+        headers["Authorization"] = f"Bearer {HERMES_API_KEY}"
+    if session_id:
+        headers["X-Hermes-Session-Id"] = session_id
+    if session_key:
+        headers["X-Hermes-Session-Key"] = session_key
+    return headers
+
 # ---------------------------------------------------------------------------
 # Tool marker parsing
 # ---------------------------------------------------------------------------
@@ -330,6 +363,7 @@ class HermesGateway(GatewayBase):
         try:
             resp = requests.get(
                 f"{HERMES_BASE_URL}/health",
+                headers=_hermes_headers(),
                 timeout=5
             )
             return resp.ok
@@ -394,6 +428,10 @@ class HermesGateway(GatewayBase):
                     "stream": True,
                 },
                 stream=True,
+                headers=_hermes_headers(
+                    session_id=session_key,
+                    session_key=HERMES_TENANT_SESSION_KEY,
+                ),
                 timeout=HERMES_TIMEOUT,
                 headers={"Content-Type": "application/json"},
             )
@@ -624,7 +662,11 @@ class HermesBridgeGateway(GatewayBase):
 
     def is_healthy(self) -> bool:
         try:
-            resp = requests.get(f"{HERMES_BASE_URL}/health", timeout=5)
+            resp = requests.get(
+                f"{HERMES_BASE_URL}/health",
+                headers=_hermes_headers(),
+                timeout=5,
+            )
             return resp.ok
         except Exception:
             return False
@@ -658,7 +700,10 @@ class HermesBridgeGateway(GatewayBase):
                 },
                 stream=True,
                 timeout=HERMES_TIMEOUT,
-                headers={"Content-Type": "application/json"},
+                headers=_hermes_headers(
+                    session_id=session_key,
+                    session_key=HERMES_TENANT_SESSION_KEY,
+                ),
             )
 
             if not resp.ok:

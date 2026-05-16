@@ -27,6 +27,24 @@ HERMES_PORT = os.getenv("HERMES_PORT", "18790")
 HERMES_BASE_URL = f"http://{HERMES_HOST}:{HERMES_PORT}"
 HERMES_TIMEOUT = 30
 
+# Bearer key minted by the Hermes container on first boot (v0.10+ requirement
+# when binding to non-loopback). The JamBot provisioner plumbs the value from
+# /opt/data/.env on the Hermes container into this OVU container's env. Omit
+# the header when unset so older deployments keep working unchanged.
+HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
+HERMES_TENANT_SESSION_KEY = os.getenv("JAMBOT_TENANT", "")
+
+
+def _hermes_headers() -> dict:
+    """Bearer + tenant-scoped session-key headers for proxy calls to Hermes."""
+    headers = {}
+    if HERMES_API_KEY:
+        headers["Authorization"] = f"Bearer {HERMES_API_KEY}"
+    if HERMES_TENANT_SESSION_KEY:
+        headers["X-Hermes-Session-Key"] = HERMES_TENANT_SESSION_KEY
+    return headers
+
+
 # Path to framework mode file (persisted on server volume)
 MODE_FILE = "/app/runtime/hermes-mode.json"
 
@@ -34,7 +52,11 @@ MODE_FILE = "/app/runtime/hermes-mode.json"
 def _hermes_get(path, timeout=HERMES_TIMEOUT):
     """Helper: GET request to Hermes API."""
     try:
-        resp = requests.get(f"{HERMES_BASE_URL}{path}", timeout=timeout)
+        resp = requests.get(
+            f"{HERMES_BASE_URL}{path}",
+            headers=_hermes_headers(),
+            timeout=timeout,
+        )
         return resp.json() if resp.ok else None, resp.status_code
     except requests.ConnectionError:
         return None, 503
@@ -49,6 +71,7 @@ def _hermes_post(path, data=None, timeout=HERMES_TIMEOUT):
         resp = requests.post(
             f"{HERMES_BASE_URL}{path}",
             json=data,
+            headers=_hermes_headers(),
             timeout=timeout,
         )
         return resp.json() if resp.ok else None, resp.status_code
@@ -66,7 +89,11 @@ def _hermes_post(path, data=None, timeout=HERMES_TIMEOUT):
 def hermes_status():
     """Check if Hermes container is running and healthy."""
     try:
-        resp = requests.get(f"{HERMES_BASE_URL}/health", timeout=5)
+        resp = requests.get(
+            f"{HERMES_BASE_URL}/health",
+            headers=_hermes_headers(),
+            timeout=5,
+        )
         if resp.ok:
             data = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
             return jsonify({
