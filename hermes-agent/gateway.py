@@ -184,28 +184,61 @@ def _make_action_event(emoji: str, tool_name: str, detail: str) -> dict:
 
 def _iter_sse_content(response):
     """
-    Yield content strings from a streaming SSE response.
+    Yield typed events from a streaming SSE response.
 
-    Expected format per line:
+    Yields:
+      ("content", str)         — chat completion content delta
+      ("tool_progress", dict)  — hermes.tool.progress event payload
+                                 (Hermes v0.10+ structured tool lifecycle)
+
+    SSE event-type tracking follows the protocol: an `event: <name>` line
+    sets the type for the NEXT data payload; an empty line resets to
+    default "message". Without this reset, our v0.6-era parser misread
+    tool-progress events as content (silently dropped — no `choices`
+    field) and the action panel showed nothing on v0.13.
+
+    Expected wire format:
+      Content delta (default "message" event):
         data: {"choices":[{"delta":{"content":"text"}}]}
-    Final line:
+
+      Tool event (custom):
+        event: hermes.tool.progress
+        data: {"tool":"terminal","emoji":"💻","label":"hostname","toolCallId":"...","status":"running"}
+
+      Tool completion:
+        event: hermes.tool.progress
+        data: {"tool":"terminal","toolCallId":"...","status":"completed"}
+
+      Stream terminator:
         data: [DONE]
     """
+    current_event = "message"
     for line in response.iter_lines(decode_unicode=True):
-        if not line or not line.startswith("data: "):
+        if not line:
+            # SSE event boundary — reset to default "message" for the next event
+            current_event = "message"
+            continue
+        if line.startswith("event: "):
+            current_event = line[7:].strip()
+            continue
+        if not line.startswith("data: "):
             continue
         data_str = line[6:]
         if data_str.strip() == "[DONE]":
             break
         try:
-            chunk = json.loads(data_str)
-            choices = chunk.get("choices", [])
+            payload = json.loads(data_str)
+        except json.JSONDecodeError:
+            continue
+        if current_event == "hermes.tool.progress":
+            yield ("tool_progress", payload)
+        else:
+            # Default "message" event = OpenAI-compat chat completion chunk
+            choices = payload.get("choices", [])
             if choices:
                 content = choices[0].get("delta", {}).get("content")
                 if content:
-                    yield content
-        except json.JSONDecodeError:
-            continue
+                    yield ("content", content)
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +334,32 @@ class _StreamProcessor:
             # Only emit non-whitespace-only deltas to avoid TTS hiccups
             if stripped.strip():
                 self._queue.put({"type": "delta", "text": stripped})
+
+    def emit_tool_progress(self, payload: dict) -> None:
+        """Handle a Hermes v0.10+ structured tool-progress event.
+
+        v0.13 dropped the legacy inline backtick markers (`💻 hostname`)
+        and replaced them with `event: hermes.tool.progress` SSE events
+        carrying {tool, emoji, label, toolCallId, status: running|completed}.
+
+        On `running`, emit an action event for the panel using the same
+        format _make_action_event produces. On `completed`, we currently
+        no-op (the action panel only renders starts today — completed
+        events could drive a tick/timing UI in a later pass).
+        """
+        status = payload.get("status", "")
+        if status != "running":
+            return
+        tool_name = payload.get("tool", "unknown")
+        emoji = payload.get("emoji", "")
+        label = payload.get("label", tool_name)
+        action_evt = _make_action_event(emoji, tool_name, label)
+        # Carry the toolCallId so future patches can correlate completed events.
+        action_evt["action"]["toolCallId"] = payload.get("toolCallId", "")
+        self._queue.put(action_evt)
+        self._actions.append(action_evt["action"])
+        # Tool events don't add to clean_text or full_text — they're metadata,
+        # not user-facing content. TTS already ignores them this way.
 
     def _flush_as_text(self) -> None:
         """Flush buffer as plain text (no marker found despite buffering)."""
@@ -433,7 +492,6 @@ class HermesGateway(GatewayBase):
                     session_key=HERMES_TENANT_SESSION_KEY,
                 ),
                 timeout=HERMES_TIMEOUT,
-                headers={"Content-Type": "application/json"},
             )
             run_info["response"] = resp
 
@@ -452,8 +510,11 @@ class HermesGateway(GatewayBase):
             # Stream with tool marker parsing
             processor = _StreamProcessor(event_queue, captured_actions)
 
-            for content in _iter_sse_content(resp):
-                processor.feed(content)
+            for kind, payload in _iter_sse_content(resp):
+                if kind == "content":
+                    processor.feed(payload)
+                elif kind == "tool_progress":
+                    processor.emit_tool_progress(payload)
 
             full_text, clean_text = processor.finish()
 
@@ -716,8 +777,11 @@ class HermesBridgeGateway(GatewayBase):
             # Stream with tool marker parsing
             processor = _StreamProcessor(event_queue, captured_actions)
 
-            for content in _iter_sse_content(resp):
-                processor.feed(content)
+            for kind, payload in _iter_sse_content(resp):
+                if kind == "content":
+                    processor.feed(payload)
+                elif kind == "tool_progress":
+                    processor.emit_tool_progress(payload)
 
             full_text, clean_text = processor.finish()
 
