@@ -19,6 +19,7 @@ import logging
 import os
 import queue
 import re
+import threading
 import time
 from typing import Optional
 
@@ -301,6 +302,22 @@ class HermesGateway(GatewayBase):
 
     def __init__(self):
         self._session_history: dict[str, list] = {}
+        # Active runs tracked for mid-flight abort + steer. Hermes's
+        # /v1/chat/completions is stateless per request, so "steer" here
+        # means: close the in-flight HTTP connection (api_server.py
+        # interrupts the agent on client disconnect) and re-fire a new
+        # request with the steer message appended, reusing the SAME
+        # event_queue so the browser's /api/conversation SSE keeps flowing
+        # without the client noticing a seam.
+        #
+        # Key: session_key. Value: dict with:
+        #   "response"        — the in-flight requests.Response (or None pre-send)
+        #   "event_queue"     — the queue this run feeds (browser SSE bridge)
+        #   "captured_actions"— the list stream_to_queue appends actions to
+        #   "aborted_by_steer"— True if steer closed the run (suppresses text_done
+        #                       so the replacement run emits the single terminal event)
+        self._active_runs: dict[str, dict] = {}
+        self._active_runs_lock = threading.Lock()
 
     def is_configured(self) -> bool:
         """Check if the Hermes container is reachable."""
@@ -354,6 +371,20 @@ class HermesGateway(GatewayBase):
         if len(history) > 50:
             history[:] = history[-50:]
 
+        # Register this run as active for this session so send_steer /
+        # abort_active_run can find and close it mid-flight. Any existing
+        # active run for this session is replaced (should be rare — only
+        # happens if a previous run is still draining after its abort).
+        run_info = {
+            "response": None,
+            "event_queue": event_queue,
+            "captured_actions": captured_actions,
+            "aborted_by_steer": False,
+        }
+        with self._active_runs_lock:
+            self._active_runs[session_key] = run_info
+
+        resp = None
         try:
             resp = requests.post(
                 HERMES_API_URL,
@@ -366,6 +397,7 @@ class HermesGateway(GatewayBase):
                 timeout=HERMES_TIMEOUT,
                 headers={"Content-Type": "application/json"},
             )
+            run_info["response"] = resp
 
             if not resp.ok:
                 error_text = resp.text[:500]
@@ -417,29 +449,153 @@ class HermesGateway(GatewayBase):
             # Store assistant response in history
             history.append({"role": "assistant", "content": full_text or ""})
 
-            event_queue.put({
-                "type": "text_done",
-                "response": full_text or "",
-                "actions": captured_actions,
-            })
+            # Only emit the terminal text_done if we weren't aborted by
+            # a steer — the replacement run will emit its own.
+            if not run_info["aborted_by_steer"]:
+                event_queue.put({
+                    "type": "text_done",
+                    "response": full_text or "",
+                    "actions": captured_actions,
+                })
 
         except requests.Timeout:
-            logger.error(f"Hermes: timeout after {HERMES_TIMEOUT}s for session {session_key}")
-            event_queue.put({"type": "error", "error": "Hermes Agent timed out"})
+            if not run_info["aborted_by_steer"]:
+                logger.error(f"Hermes: timeout after {HERMES_TIMEOUT}s for session {session_key}")
+                event_queue.put({"type": "error", "error": "Hermes Agent timed out"})
 
         except requests.ConnectionError:
-            logger.error("Hermes: connection refused — is hermes container running?")
-            event_queue.put({
-                "type": "error",
-                "error": "Cannot connect to Hermes Agent. The container may not be running.",
-            })
+            # A mid-flight steer closes the HTTP connection, which surfaces
+            # here as ConnectionError on the next chunk read. That's not an
+            # error — the replacement run will take over feeding the queue.
+            if not run_info["aborted_by_steer"]:
+                logger.error("Hermes: connection refused — is hermes container running?")
+                event_queue.put({
+                    "type": "error",
+                    "error": "Cannot connect to Hermes Agent. The container may not be running.",
+                })
 
         except Exception as exc:
-            logger.error(f"Hermes: unexpected error: {exc}")
-            event_queue.put({"type": "error", "error": str(exc)})
+            # Same deal — if the exception is a side-effect of our own
+            # steer-driven close (requests raises various ChunkedEncoding /
+            # ProtocolError variants depending on timing), swallow it.
+            if not run_info["aborted_by_steer"]:
+                logger.error(f"Hermes: unexpected error: {exc}")
+                event_queue.put({"type": "error", "error": str(exc)})
+            else:
+                logger.debug(f"Hermes: run {session_key} interrupted by steer ({exc.__class__.__name__})")
+
+        finally:
+            # Deregister — but only if we're still the registered run.
+            # send_steer may have already replaced us with the new run's info.
+            with self._active_runs_lock:
+                if self._active_runs.get(session_key) is run_info:
+                    self._active_runs.pop(session_key, None)
+
+    def abort_active_run(self, session_key: str) -> bool:
+        """Terminate the in-flight Hermes call for a session.
+
+        Closes the HTTP connection to Hermes's API server, which detects
+        the client disconnect and interrupts the agent via
+        ``agent.interrupt()`` (api_server.py writes log line "SSE client
+        disconnected; interrupted agent task"). Used by
+        ``/api/conversation/abort``.
+
+        Returns True if a run was aborted, False if none was active.
+        """
+        with self._active_runs_lock:
+            info = self._active_runs.get(session_key)
+        if not info:
+            return False
+        resp = info.get("response")
+        if resp is None:
+            # Run is registered but the HTTP request hasn't been issued yet
+            # (racing with the start of stream_to_queue). Mark it aborted
+            # so the subsequent code path treats it as such.
+            info["aborted_by_steer"] = True
+            return True
+        try:
+            resp.close()
+        except Exception as e:
+            logger.debug(f"Hermes abort_active_run close error (ok): {e}")
+        return True
+
+    def send_steer(self, message: str, session_key: str) -> bool:
+        """Inject a user message mid-flight by aborting + restarting.
+
+        Hermes has no native steer-at-tool-boundary (OpenClaw does,
+        Hermes's REST API is stateless per call). We emulate the user
+        experience by:
+
+        1. Closing the in-flight HTTP request (Hermes server interrupts
+           the agent; the existing stream_to_queue exception handler
+           suppresses its terminal event thanks to ``aborted_by_steer``).
+        2. Spawning a fresh stream_to_queue against the SAME event_queue
+           so the browser's /api/conversation SSE keeps flowing without
+           a visible seam. History already contains the prior user +
+           partial-assistant turns; the new call appends the steer
+           message and re-asks Hermes.
+
+        Called from ``/api/conversation/steer`` and ``/interject``
+        when the classifier chose ``steer`` or ``context`` lane.
+
+        Returns True if steered, False if no active run was found
+        (caller should then treat the message as a fresh turn).
+        """
+        with self._active_runs_lock:
+            info = self._active_runs.get(session_key)
+
+        if not info:
+            return False
+
+        # Preserve the queue + action list so the replacement run feeds
+        # the same browser SSE — the caller's existing connection.
+        event_queue = info["event_queue"]
+        captured_actions = info["captured_actions"]
+
+        # Flag the outgoing run so its finally-block suppresses text_done.
+        info["aborted_by_steer"] = True
+
+        # Close the HTTP connection; hermes server sees SSE client disconnect
+        # and fires agent.interrupt() internally.
+        resp = info.get("response")
+        if resp is not None:
+            try:
+                resp.close()
+            except Exception as e:
+                logger.debug(f"Hermes steer close error (ok): {e}")
+
+        # Fire the replacement in a new thread so this handler returns
+        # immediately (fire-and-forget contract from interject/steer).
+        # stream_to_queue will append `message` to the session history,
+        # register itself as the new active run, and emit the final
+        # text_done when done.
+        def _resume():
+            try:
+                self.stream_to_queue(
+                    event_queue,
+                    message,
+                    session_key,
+                    captured_actions=captured_actions,
+                )
+            except Exception as e:
+                logger.error(f"Hermes steer re-stream failed: {e}")
+                event_queue.put({"type": "error", "error": f"Hermes steer failed: {e}"})
+
+        t = threading.Thread(
+            target=_resume,
+            daemon=True,
+            name=f"hermes-steer-{session_key}",
+        )
+        t.start()
+
+        logger.info(f"Hermes: steered session {session_key} — message injected, run restarted")
+        return True
 
     def reset_session(self, session_key: str) -> None:
         """Clear conversation history for a session."""
+        # Kill any in-flight run for this session first so it doesn't
+        # keep writing into a queue that will be discarded.
+        self.abort_active_run(session_key)
         self._session_history.pop(session_key, None)
 
 
