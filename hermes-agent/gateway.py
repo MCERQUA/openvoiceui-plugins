@@ -479,11 +479,20 @@ class HermesGateway(GatewayBase):
 
         resp = None
         try:
+            # Sanitize before sending: drop any empty-content turns that may
+            # already be sitting in the in-memory history (e.g. accumulated
+            # before this fix shipped, or sent by a steer). Empty turns make
+            # GLM return empty content; stripping them keeps a degraded
+            # session from breaking new turns. Always preserves the final
+            # user message (appended above, never empty).
+            send_history = [
+                m for m in history if str(m.get("content") or "").strip()
+            ]
             resp = requests.post(
                 HERMES_API_URL,
                 json={
                     "model": "hermes-agent",
-                    "messages": history,
+                    "messages": send_history,
                     "stream": True,
                 },
                 stream=True,
@@ -545,8 +554,16 @@ class HermesGateway(GatewayBase):
             if not full_text:
                 logger.warning(f"Hermes: empty response for session {session_key}")
 
-            # Store assistant response in history
-            history.append({"role": "assistant", "content": full_text or ""})
+            # Store assistant response in history — but NEVER store an empty
+            # turn. Empty assistant turns accumulate and poison the session:
+            # GLM then returns empty content ("not a non-empty list"), which
+            # cascades into more empties until every turn fails. On empty,
+            # roll back the user message too so the failed turn leaves history
+            # exactly as it was (clean alternation for the next real turn).
+            if full_text:
+                history.append({"role": "assistant", "content": full_text})
+            elif history and history[-1].get("role") == "user":
+                history.pop()
 
             # Only emit the terminal text_done if we weren't aborted by
             # a steer — the replacement run will emit its own.
