@@ -2,7 +2,7 @@
 
 Gateway plugin that adds [Hermes Agent](https://github.com/NousResearch/hermes-agent) (MIT, Nous Research) as an alternative agent framework. Full voice support — STT, text processing, and TTS work identically to the default OpenClaw gateway.
 
-**Tested with:** Hermes Agent v0.13.0 (`v2026.5.7`) | OpenVoiceUI >= 2026.5.4
+**Tested with:** Hermes Agent v0.15.2 (`v2026.5.29.2`) | OpenVoiceUI >= 2026.5.4
 
 ## What It Adds
 
@@ -37,7 +37,7 @@ If your OVU host doesn't have the provisioning service (single-tenant self-hoste
 ```yaml
 # docker-compose.yml
 hermes:
-  image: nousresearch/hermes-agent:v2026.5.7
+  image: nousresearch/hermes-agent:v2026.5.29.2
   hostname: hermes
   mem_limit: 2g
   cpus: 1.0
@@ -215,7 +215,7 @@ If you're moving from a Hermes Plugin version that targeted Hermes <= v0.9:
 
 | Plugin Version | Hermes Version | Status |
 |---------------|---------------|--------|
-| current | v0.13.0 (`v2026.5.7`) | Tested, stable |
+| current | v0.15.2 (`v2026.5.29.2`) | Tested, stable |
 | current | v0.12.0 (`v2026.4.30`) | Compatible — `X-Hermes-Session-Key` not sent, otherwise fine |
 | current | <= v0.9.x | Not compatible — `API_SERVER_KEY` gate didn't exist; SSE event format predates `hermes.tool.progress` |
 
