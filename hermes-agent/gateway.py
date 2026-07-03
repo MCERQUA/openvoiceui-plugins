@@ -52,6 +52,89 @@ HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
 HERMES_TENANT_SESSION_KEY = os.getenv("JAMBOT_TENANT", "")
 
 
+# ---------------------------------------------------------------------------
+# HERMES_API_KEY self-heal
+# ---------------------------------------------------------------------------
+# The hermes gateway mints a bearer key (API_SERVER_KEY) on first boot and
+# enforces it on every request once it binds a non-loopback address (v0.10+),
+# which every JamBot tenant does (0.0.0.0:18790). OVU must send that exact
+# value as HERMES_API_KEY or every gateway call 401s.
+#
+# The JamBot provisioner is *supposed* to copy API_SERVER_KEY -> the OVU
+# container's HERMES_API_KEY at provision time, but that plumbing step has
+# gone missing before (src, 2026-07-01: plugin loaded fine because the
+# HERMES_HOST gate passed, yet every voice turn silently fell back to OpenClaw
+# with no clue why). Rather than depend on the provisioner, the plugin resolves
+# the key itself from the sibling hermes-<tenant> container. OVU runs with the
+# docker socket mounted, so we `docker exec` the sibling and read its
+# /opt/data/.env (hermes keeps the minted key there — it is NOT exported into
+# the process env, so `printenv` can't see it). This makes the plugin
+# self-sufficient for every tenant, every OVU restart, with zero provisioner
+# or manual .env work.
+
+
+def _resolve_api_key_from_sibling(tenant: str) -> str:
+    """Read the hermes container's minted API_SERVER_KEY from the sibling.
+
+    Returns '' on any failure (no tenant, docker binary missing, socket
+    unavailable, hermes not up yet, key absent). Callers degrade gracefully —
+    they just omit the Authorization header and let hermes 401 if it enforces one.
+    """
+    if not tenant:
+        return ""
+    try:
+        import subprocess
+        proc = subprocess.run(
+            ["docker", "exec", f"hermes-{tenant}", "sh", "-c",
+             "grep -E '^API_SERVER_KEY=' /opt/data/.env 2>/dev/null | head -1"],
+            capture_output=True, text=True, timeout=8,
+        )
+    except Exception as exc:  # FileNotFoundError (no docker), TimeoutExpired, ...
+        logger.debug("hermes-agent: sibling API key lookup failed: %s", exc)
+        return ""
+    line = (proc.stdout or "").strip()
+    if "=" not in line:
+        return ""
+    return line.split("=", 1)[1].strip()
+
+
+def _refresh_hermes_api_key() -> str:
+    """Force-re-resolve HERMES_API_KEY from the sibling (401 recovery).
+
+    Used when the cached key has gone stale — e.g. hermes re-minted
+    API_SERVER_KEY after a restart in which the provisioner failed to carry the
+    key forward. Updates the module global + os.environ so the next
+    _hermes_headers() call picks up the fresh value.
+    """
+    global HERMES_API_KEY
+    key = _resolve_api_key_from_sibling(HERMES_TENANT_SESSION_KEY)
+    if key:
+        HERMES_API_KEY = key
+        os.environ["HERMES_API_KEY"] = key
+    return key
+
+
+# Self-heal at plugin load. Skipped entirely (no subprocess) when HERMES_API_KEY
+# is already plumbed by the provisioner, so correctly-provisioned tenants pay
+# zero overhead. Only fires for tenants where the key is missing.
+if not HERMES_API_KEY:
+    _resolved = _resolve_api_key_from_sibling(HERMES_TENANT_SESSION_KEY)
+    if _resolved:
+        HERMES_API_KEY = _resolved
+        os.environ["HERMES_API_KEY"] = _resolved
+        logger.info(
+            "hermes-agent: HERMES_API_KEY was unset — self-resolved from sibling "
+            "hermes-%s container (provisioner had not plumbed it).",
+            HERMES_TENANT_SESSION_KEY,
+        )
+    elif HERMES_TENANT_SESSION_KEY:
+        logger.warning(
+            "hermes-agent: HERMES_API_KEY unset and sibling lookup failed — gateway "
+            "calls to hermes-%s will 401 until the key is available.",
+            HERMES_TENANT_SESSION_KEY,
+        )
+
+
 def _hermes_headers(session_id: str = "", session_key: str = "") -> dict:
     """Build headers for every Hermes API call.
 
@@ -70,6 +153,42 @@ def _hermes_headers(session_id: str = "", session_key: str = "") -> dict:
     if session_key:
         headers["X-Hermes-Session-Key"] = session_key
     return headers
+
+
+def _hermes_post(payload: dict, session_id: str = "", session_key: str = ""):
+    """POST to the Hermes chat API with one 401 key-refresh retry.
+
+    Wraps the streaming chat-completions POST used by both gateway modes. On a
+    401 the cached HERMES_API_KEY may be stale (hermes re-minted it after a
+    restart where the provisioner dropped the key); re-resolve from the sibling
+    container and retry exactly once. Any other status is returned as-is for the
+    caller's existing error handling.
+    """
+    resp = requests.post(
+        HERMES_API_URL,
+        json=payload,
+        stream=True,
+        headers=_hermes_headers(session_id=session_id, session_key=session_key),
+        timeout=HERMES_TIMEOUT,
+    )
+    if resp.status_code == 401:
+        if _refresh_hermes_api_key():
+            logger.warning(
+                "hermes-agent: 401 from Hermes API — refreshed HERMES_API_KEY, retrying once."
+            )
+            try:
+                resp.close()  # release the unconsumed streaming connection
+            except Exception:
+                pass
+            resp = requests.post(
+                HERMES_API_URL,
+                json=payload,
+                stream=True,
+                headers=_hermes_headers(session_id=session_id, session_key=session_key),
+                timeout=HERMES_TIMEOUT,
+            )
+    return resp
+
 
 # ---------------------------------------------------------------------------
 # Tool marker parsing
@@ -488,19 +607,10 @@ class HermesGateway(GatewayBase):
             send_history = [
                 m for m in history if str(m.get("content") or "").strip()
             ]
-            resp = requests.post(
-                HERMES_API_URL,
-                json={
-                    "model": "hermes-agent",
-                    "messages": send_history,
-                    "stream": True,
-                },
-                stream=True,
-                headers=_hermes_headers(
-                    session_id=session_key,
-                    session_key=HERMES_TENANT_SESSION_KEY,
-                ),
-                timeout=HERMES_TIMEOUT,
+            resp = _hermes_post(
+                {"model": "hermes-agent", "messages": send_history, "stream": True},
+                session_id=session_key,
+                session_key=HERMES_TENANT_SESSION_KEY,
             )
             run_info["response"] = resp
 
@@ -769,19 +879,14 @@ class HermesBridgeGateway(GatewayBase):
         start_ms = int(time.time() * 1000)
 
         try:
-            resp = requests.post(
-                HERMES_API_URL,
-                json={
+            resp = _hermes_post(
+                {
                     "model": "hermes-agent",
                     "messages": [{"role": "user", "content": message}],
                     "stream": True,
                 },
-                stream=True,
-                timeout=HERMES_TIMEOUT,
-                headers=_hermes_headers(
-                    session_id=session_key,
-                    session_key=HERMES_TENANT_SESSION_KEY,
-                ),
+                session_id=session_key,
+                session_key=HERMES_TENANT_SESSION_KEY,
             )
 
             if not resp.ok:
