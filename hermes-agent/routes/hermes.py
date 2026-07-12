@@ -319,12 +319,21 @@ def hermes_abort():
         return jsonify({"ok": False, "error": "Hermes gateway not available"}), 503
 
     session_key = _resolve_session_key()
+    # Cleanup-class aborts (frontend housekeeping fired after a completed
+    # reply) must never kill a FRESH run that started after that completion —
+    # the 06:37 race (2026-07-12) where post-text_done-refresh decapitated
+    # the next turn 5s after it began. Explicit user aborts stay unconditional.
+    cleanup = source in ("post-text_done-refresh", "post-textdone-refresh", "cleanup")
     aborted = False
     if hasattr(gw, "abort_active_run"):
-        aborted = bool(gw.abort_active_run(session_key))
+        try:
+            aborted = bool(gw.abort_active_run(session_key, cleanup=cleanup))
+        except TypeError:  # older gateway without the cleanup kwarg
+            aborted = bool(gw.abort_active_run(session_key))
 
     logger.info(
-        f"### HERMES ABORT session={session_key} aborted={aborted} source={source}"
+        f"### HERMES ABORT session={session_key} aborted={aborted} "
+        f"source={source} cleanup={cleanup}"
     )
     return jsonify({"ok": True, "aborted": aborted})
 

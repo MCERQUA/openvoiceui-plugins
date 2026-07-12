@@ -593,6 +593,11 @@ class HermesGateway(GatewayBase):
         # Keyed by session_key; drained into ONE chained follow-up turn when the
         # active run completes. Guarded by _active_runs_lock.
         self._pending_followups: dict[str, list] = {}
+        # When each session last emitted a terminal text_done — lets cleanup-class
+        # aborts distinguish a zombie run (started before the completion they're
+        # cleaning up after) from a FRESH run they must not kill (the 06:37
+        # post-text_done-refresh race, 2026-07-12).
+        self._last_terminal: dict[str, float] = {}
 
     def queue_followup(self, message: str, session_key: str) -> bool:
         """Queue a prompt to run AFTER the active run completes — never
@@ -677,6 +682,9 @@ class HermesGateway(GatewayBase):
             "event_queue": event_queue,
             "captured_actions": captured_actions,
             "aborted_by_steer": False,
+            "aborted_by_user": False,   # set by abort_active_run — suppresses
+                                        # error events + poison bookkeeping
+            "started_at": time.time(),  # cleanup-abort guard reads this
         }
         with self._active_runs_lock:
             self._active_runs[session_key] = run_info
@@ -762,8 +770,10 @@ class HermesGateway(GatewayBase):
 
             # Inline poison auto-heal bookkeeping (see module header). Only
             # counted for turns that reached Hermes and came back empty —
-            # timeouts/connection errors below are infra, not poison.
-            if not run_info["aborted_by_steer"]:
+            # timeouts/connection errors below are infra, not poison. A
+            # user/cleanup ABORT is also not poison (it always looks empty);
+            # counting it would let 2 aborts trigger a session purge.
+            if not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
                 _note_turn_result(session_key, bool(full_text))
 
             # Drain prompts queued while this run was in flight (no-redirect
@@ -771,7 +781,7 @@ class HermesGateway(GatewayBase):
             # follow-up turn on the same event queue — same trick as steer's
             # replacement run, except the finished run was never interrupted.
             _followup = None
-            if not run_info["aborted_by_steer"]:
+            if not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
                 with self._active_runs_lock:
                     _pend = self._pending_followups.pop(session_key, None)
                 if _pend:
@@ -787,10 +797,11 @@ class HermesGateway(GatewayBase):
                     kwargs={"captured_actions": captured_actions},
                     daemon=True,
                 ).start()
-            # Only emit the terminal text_done if we weren't aborted by a
-            # steer and no follow-up is chained — the successor run emits
-            # the single terminal event.
-            elif not run_info["aborted_by_steer"]:
+            # Only emit the terminal text_done if we weren't aborted (steer
+            # OR user/cleanup abort) and no follow-up is chained — the
+            # successor run emits the single terminal event.
+            elif not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
+                self._last_terminal[session_key] = time.time()
                 event_queue.put({
                     "type": "text_done",
                     "response": full_text or "",
@@ -798,7 +809,7 @@ class HermesGateway(GatewayBase):
                 })
 
         except requests.Timeout:
-            if not run_info["aborted_by_steer"]:
+            if not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
                 logger.error(f"Hermes: timeout after {HERMES_TIMEOUT}s for session {session_key}")
                 event_queue.put({"type": "error", "error": "Hermes Agent timed out"})
 
@@ -806,7 +817,7 @@ class HermesGateway(GatewayBase):
             # A mid-flight steer closes the HTTP connection, which surfaces
             # here as ConnectionError on the next chunk read. That's not an
             # error — the replacement run will take over feeding the queue.
-            if not run_info["aborted_by_steer"]:
+            if not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
                 logger.error("Hermes: connection refused — is hermes container running?")
                 event_queue.put({
                     "type": "error",
@@ -817,13 +828,27 @@ class HermesGateway(GatewayBase):
             # Same deal — if the exception is a side-effect of our own
             # steer-driven close (requests raises various ChunkedEncoding /
             # ProtocolError variants depending on timing), swallow it.
-            if not run_info["aborted_by_steer"]:
+            if not run_info["aborted_by_steer"] and not run_info["aborted_by_user"]:
                 logger.error(f"Hermes: unexpected error: {exc}")
                 event_queue.put({"type": "error", "error": str(exc)})
             else:
-                logger.debug(f"Hermes: run {session_key} interrupted by steer ({exc.__class__.__name__})")
+                logger.debug(f"Hermes: run {session_key} interrupted by steer/abort ({exc.__class__.__name__})")
 
         finally:
+            # A user/cleanup abort suppresses error + text_done above — but the
+            # browser SSE bridge still needs ONE terminal event to close out
+            # cleanly (previously it got a spurious "error"). Quiet empty
+            # terminal; steer replacement runs emit their own instead.
+            if run_info["aborted_by_user"] and not run_info["aborted_by_steer"]:
+                self._last_terminal[session_key] = time.time()
+                try:
+                    event_queue.put({
+                        "type": "text_done",
+                        "response": "",
+                        "actions": captured_actions,
+                    })
+                except Exception:
+                    pass
             # Deregister — but only if we're still the registered run.
             # send_steer may have already replaced us with the new run's info.
             with self._active_runs_lock:
@@ -843,7 +868,7 @@ class HermesGateway(GatewayBase):
                     f"into next-turn history for session {session_key}"
                 )
 
-    def abort_active_run(self, session_key: str) -> bool:
+    def abort_active_run(self, session_key: str, cleanup: bool = False) -> bool:
         """Terminate the in-flight Hermes call for a session.
 
         Closes the HTTP connection to Hermes's API server, which detects
@@ -852,18 +877,31 @@ class HermesGateway(GatewayBase):
         disconnected; interrupted agent task"). Used by
         ``/api/conversation/abort``.
 
-        Returns True if a run was aborted, False if none was active.
+        cleanup=True marks a housekeeping abort (frontend fires one after
+        every completed reply). Those must only kill ZOMBIE runs — a run
+        that started AFTER the session's last terminal event is a fresh
+        turn the cleanup was never aimed at, and is left alone (the 06:37
+        post-text_done-refresh race, 2026-07-12).
+
+        Returns True if a run was aborted, False if none was active (or a
+        cleanup abort skipped a fresh run).
         """
         with self._active_runs_lock:
             info = self._active_runs.get(session_key)
         if not info:
             return False
+        if cleanup and info.get("started_at", 0) > self._last_terminal.get(session_key, 0):
+            logger.info(
+                f"Hermes: cleanup abort SKIPPED on session {session_key} — "
+                f"active run is fresher than the last completion (not its target)"
+            )
+            return False
+        info["aborted_by_user"] = True
         resp = info.get("response")
         if resp is None:
             # Run is registered but the HTTP request hasn't been issued yet
-            # (racing with the start of stream_to_queue). Mark it aborted
-            # so the subsequent code path treats it as such.
-            info["aborted_by_steer"] = True
+            # (racing with the start of stream_to_queue) — the flag above
+            # makes its code path suppress terminal/error/poison bookkeeping.
             return True
         try:
             resp.close()
