@@ -51,6 +51,65 @@ HERMES_API_KEY = os.getenv("HERMES_API_KEY", "")
 # Falls back to empty so single-tenant self-hosters who don't set it just omit the header.
 HERMES_TENANT_SESSION_KEY = os.getenv("JAMBOT_TENANT", "")
 
+# ---------------------------------------------------------------------------
+# Session-poison inline auto-heal (2026-07-12)
+# ---------------------------------------------------------------------------
+# A failed turn leaves Hermes' own SQLite history (state.db) with a dangling
+# user message and no assistant reply; replaying that history makes GLM
+# return empty content ("response.content invalid ... not a non-empty list"),
+# which makes the NEXT turn likelier to fail — a death spiral. The OVU-side
+# history guard below cannot prevent it: Hermes rebuilds history from its OWN
+# store, not from what we send. Heal inline: after POISON_HEAL_AFTER
+# consecutive empty responses on the same hermes session, docker-exec the
+# sibling container and delete that session. OVU re-injects full context on
+# every turn, so the cost is one conversation's rolling memory — vastly
+# better than a dead agent. Backstop: jambot-health-monitor.sh Check 7.5
+# (cron */5) catches anything this misses. Timeouts/connection errors are NOT
+# counted — those are infra, not poison.
+POISON_HEAL_AFTER = 2
+_empty_streaks: dict = {}
+_empty_streaks_lock = threading.Lock()
+
+
+def _purge_poisoned_session(hermes_session_id: str) -> bool:
+    """Delete a hermes-side session via the sibling container. Best-effort."""
+    tenant = HERMES_TENANT_SESSION_KEY
+    if not tenant or not hermes_session_id:
+        return False
+    try:
+        import subprocess
+        for user in ("hermes", "1000:1000"):
+            proc = subprocess.run(
+                ["docker", "exec", "-u", user, "-e", "HOME=/opt/data",
+                 f"hermes-{tenant}", "/opt/hermes/.venv/bin/hermes",
+                 "sessions", "delete", hermes_session_id, "--yes"],
+                capture_output=True, text=True, timeout=20,
+            )
+            if proc.returncode == 0:
+                return True
+        return False
+    except Exception as exc:  # no docker binary/socket, timeout, ...
+        logger.warning("hermes-agent: poisoned-session purge failed: %s", exc)
+        return False
+
+
+def _note_turn_result(hermes_session_id: str, got_text: bool) -> None:
+    """Track consecutive empty turns per hermes session; purge on threshold."""
+    with _empty_streaks_lock:
+        if got_text:
+            _empty_streaks.pop(hermes_session_id, None)
+            return
+        streak = _empty_streaks.get(hermes_session_id, 0) + 1
+        _empty_streaks[hermes_session_id] = streak
+    if streak >= POISON_HEAL_AFTER and _purge_poisoned_session(hermes_session_id):
+        logger.warning(
+            "hermes-agent: %d consecutive empty turns on session '%s' — poison "
+            "signature; purged the hermes-side session (inline auto-heal).",
+            streak, hermes_session_id,
+        )
+        with _empty_streaks_lock:
+            _empty_streaks.pop(hermes_session_id, None)
+
 
 # ---------------------------------------------------------------------------
 # HERMES_API_KEY self-heal
@@ -674,6 +733,12 @@ class HermesGateway(GatewayBase):
                 history.append({"role": "assistant", "content": full_text})
             elif history and history[-1].get("role") == "user":
                 history.pop()
+
+            # Inline poison auto-heal bookkeeping (see module header). Only
+            # counted for turns that reached Hermes and came back empty —
+            # timeouts/connection errors below are infra, not poison.
+            if not run_info["aborted_by_steer"]:
+                _note_turn_result(session_key, bool(full_text))
 
             # Only emit the terminal text_done if we weren't aborted by
             # a steer — the replacement run will emit its own.
