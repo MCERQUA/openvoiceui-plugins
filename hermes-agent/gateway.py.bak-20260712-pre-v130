@@ -588,32 +588,6 @@ class HermesGateway(GatewayBase):
         #                       so the replacement run emits the single terminal event)
         self._active_runs: dict[str, dict] = {}
         self._active_runs_lock = threading.Lock()
-        # Prompts that arrived WHILE a run was in flight (no-redirect policy,
-        # Mike 2026-07-12: "multiple prompts don't redirect the one in flight").
-        # Keyed by session_key; drained into ONE chained follow-up turn when the
-        # active run completes. Guarded by _active_runs_lock.
-        self._pending_followups: dict[str, list] = {}
-
-    def queue_followup(self, message: str, session_key: str) -> bool:
-        """Queue a prompt to run AFTER the active run completes — never
-        redirects the in-flight run. Multiple queued prompts batch into one
-        follow-up turn on the same browser event queue. Returns False when
-        no run is active (caller should note it for the next turn instead)."""
-        with self._active_runs_lock:
-            info = self._active_runs.get(session_key)
-            if not info:
-                return False
-            self._pending_followups.setdefault(session_key, []).append(message)
-        logger.info(f"Hermes: queued follow-up for session {session_key} (in-flight run NOT redirected)")
-        return True
-
-    def note_for_next_turn(self, message: str, session_key: str) -> None:
-        """Carry a message that missed its run (run ended before interject
-        landed) into the session history so the NEXT turn sees it — fixes the
-        action=missed silent-drop (messages vanished, 2026-07-12)."""
-        hist = self._session_history.setdefault(session_key, [])
-        hist.append({"role": "user", "content": message})
-        logger.info(f"Hermes: noted missed interject for next turn on session {session_key}")
 
     def is_configured(self) -> bool:
         """Check if the Hermes container is reachable."""
@@ -766,31 +740,9 @@ class HermesGateway(GatewayBase):
             if not run_info["aborted_by_steer"]:
                 _note_turn_result(session_key, bool(full_text))
 
-            # Drain prompts queued while this run was in flight (no-redirect
-            # policy): instead of emitting the terminal event, CHAIN one
-            # follow-up turn on the same event queue — same trick as steer's
-            # replacement run, except the finished run was never interrupted.
-            _followup = None
+            # Only emit the terminal text_done if we weren't aborted by
+            # a steer — the replacement run will emit its own.
             if not run_info["aborted_by_steer"]:
-                with self._active_runs_lock:
-                    _pend = self._pending_followups.pop(session_key, None)
-                if _pend:
-                    _followup = "\n".join(_pend)
-            if _followup is not None:
-                logger.info(
-                    f"Hermes: chaining {_followup.count(chr(10)) + 1} queued follow-up "
-                    f"prompt(s) after completed run on session {session_key}"
-                )
-                threading.Thread(
-                    target=self.stream_to_queue,
-                    args=(event_queue, _followup, session_key),
-                    kwargs={"captured_actions": captured_actions},
-                    daemon=True,
-                ).start()
-            # Only emit the terminal text_done if we weren't aborted by a
-            # steer and no follow-up is chained — the successor run emits
-            # the single terminal event.
-            elif not run_info["aborted_by_steer"]:
                 event_queue.put({
                     "type": "text_done",
                     "response": full_text or "",
@@ -829,19 +781,6 @@ class HermesGateway(GatewayBase):
             with self._active_runs_lock:
                 if self._active_runs.get(session_key) is run_info:
                     self._active_runs.pop(session_key, None)
-                # Error/steer paths never drained the follow-up queue (the
-                # browser stream closes on an error event, so chaining there
-                # would stream into the void). Carry any leftovers into the
-                # session history so the NEXT turn sees them — never drop.
-                _leftover = self._pending_followups.pop(session_key, None)
-            if _leftover:
-                self._session_history.setdefault(session_key, []).append(
-                    {"role": "user", "content": "\n".join(_leftover)}
-                )
-                logger.info(
-                    f"Hermes: carried {len(_leftover)} un-chained follow-up prompt(s) "
-                    f"into next-turn history for session {session_key}"
-                )
 
     def abort_active_run(self, session_key: str) -> bool:
         """Terminate the in-flight Hermes call for a session.

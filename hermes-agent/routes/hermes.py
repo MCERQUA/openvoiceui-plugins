@@ -424,13 +424,24 @@ def hermes_interject():
     session_key = _resolve_session_key()
 
     if lane in ("context", "steer"):
-        # Hermes collapses "queue alongside" into steer since it has no
-        # native collect-mode. The user message still lands and the agent
-        # pivots at the next chunk boundary.
-        steered = False
-        if hasattr(gw, "send_steer"):
-            steered = bool(gw.send_steer(message, session_key))
-        action = "steered" if steered else "missed"
+        # NO-REDIRECT POLICY (Mike, 2026-07-12: "multiple prompts don't
+        # redirect the one in flight"):
+        #   context → QUEUE behind the active run (queue_followup) — the
+        #             in-flight run finishes untouched, then one chained
+        #             follow-up turn carries the queued prompt(s).
+        #   steer   → true redirect (explicit user intent to change course):
+        #             abort + respawn as before.
+        # Neither lane may DROP a message: when there is no active run
+        # (the old action=missed silent-drop), the message is noted into
+        # the session history so the next turn sees it.
+        action = "missed"
+        if lane == "context" and hasattr(gw, "queue_followup"):
+            action = "queued" if gw.queue_followup(message, session_key) else "missed"
+        elif hasattr(gw, "send_steer"):
+            action = "steered" if gw.send_steer(message, session_key) else "missed"
+        if action == "missed" and hasattr(gw, "note_for_next_turn"):
+            gw.note_for_next_turn(message, session_key)
+            action = "noted-for-next-turn"
         logger.info(
             f"### HERMES INTERJECT [{lane}] session={session_key} "
             f"action={action} source={source} text={message!r}"
