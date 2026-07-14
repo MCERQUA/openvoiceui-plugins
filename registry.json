@@ -5,7 +5,7 @@
     {
       "id": "bhb-animated-characters",
       "name": "BHB Animated Characters",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Animated BigHead Billionaires character avatars with lip-sync, mood expressions, character builder, and show lore",
       "type": "face",
       "author": "bhaleyart"
@@ -48,7 +48,7 @@
       "id": "seo-platform",
       "name": "SEO Platform",
       "version": "1.0.0",
-      "description": "Full SEO dashboard powered by DataForSEO — keyword research, rank tracking, backlink analysis, site audits, AI visibility, local SEO, and brand monitoring.",
+      "description": "Full SEO dashboard powered by DataForSEO \u2014 keyword research, rank tracking, backlink analysis, site audits, AI visibility, local SEO, and brand monitoring.",
       "type": "page",
       "author": "jambot"
     }

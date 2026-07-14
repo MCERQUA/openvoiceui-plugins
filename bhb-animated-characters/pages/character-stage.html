@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Stage</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f17;--panel:#121826;--panel2:#0e1420;--border:#243044;
+  --text:#e6edf3;--muted:#8b98ab;--accent:#3b82f6;--accent-dim:#1d4ed8;
+  --success:#3fb950;--danger:#f85149;--warn:#f59e0b;
+}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;overflow:hidden}
+button{cursor:pointer;font-family:inherit;font-size:13px;padding:7px 12px;border-radius:6px;background:var(--panel);color:var(--text);border:1px solid var(--border);transition:background .15s,border-color .15s}
+button:hover{background:var(--border)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:var(--accent-dim)}
+button.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+button.danger:hover{background:rgba(248,81,73,.15)}
+button.rec-on{background:var(--danger);border-color:var(--danger);color:#fff;animation:pulse 1.2s infinite}
+button:disabled{opacity:.45;cursor:default}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+input[type=text],input[type=url],select{background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:13px;width:100%}
+input[type=range]{accent-color:var(--accent);width:100%}
+input[type=color]{width:36px;height:28px;border:1px solid var(--border);border-radius:6px;background:none;padding:2px;cursor:pointer}
+label.mini{font-size:11px;color:var(--muted);display:block;margin:8px 0 3px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.row>.fix{flex:0 0 auto}
+
+/* ── Top bar ── */
+.topbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.topbar h1{font-size:15px;font-weight:700;margin-right:6px;white-space:nowrap}
+.topbar h1 span{color:var(--accent)}
+.scene-select{max-width:190px}
+.spacer{flex:1}
+.save-dot{font-size:11px;color:var(--muted);white-space:nowrap}
+.save-dot.dirty{color:var(--warn)}
+
+/* ── Layout ── */
+.main{display:flex;flex:1;min-height:0}
+.stage-wrap{flex:1;display:flex;flex-direction:column;min-width:0}
+.stage-area{flex:1;position:relative;display:flex;align-items:center;justify-content:center;background:#05070c;overflow:hidden;min-height:0}
+.stage-holder{position:relative}
+#bg-embed{position:absolute;inset:0;border:0;width:100%;height:100%;background:#000}
+#stage,#overlay{position:absolute;inset:0;width:100%;height:100%;display:block}
+#overlay{cursor:default}
+.stage-hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:14px;text-align:center;pointer-events:none;max-width:80%}
+
+/* ── Transport ── */
+.transport{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
+.transport .time{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.transport input[type=range]{flex:1}
+.now-playing{font-size:12px;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.amp-meter{width:60px;height:8px;background:var(--panel2);border:1px solid var(--border);border-radius:4px;overflow:hidden;flex-shrink:0}
+.amp-meter i{display:block;height:100%;width:0;background:var(--success)}
+
+/* ── Side panel ── */
+.side{width:330px;flex-shrink:0;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.side-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.side-tabs button{flex:1;border:0;border-radius:0;background:transparent;padding:10px 4px;font-size:12px;color:var(--muted);border-bottom:2px solid transparent}
+.side-tabs button.on{color:var(--text);border-bottom-color:var(--accent);background:var(--panel2)}
+.side-body{flex:1;overflow-y:auto;padding:12px}
+.section-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:14px 0 6px}
+.section-title:first-child{margin-top:0}
+
+/* character cards */
+.char-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.char-card{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;cursor:pointer;transition:border-color .15s}
+.char-card:hover{border-color:var(--accent)}
+.char-card canvas{width:100%;aspect-ratio:1;border-radius:6px;background:#0a0f1a}
+.char-card .nm{font-size:11px;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;background:var(--panel2);cursor:pointer;font-size:12px}
+.list-item:hover{border-color:var(--accent)}
+.list-item.on{border-color:var(--accent);background:rgba(59,130,246,.1)}
+.list-item .grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list-item .sub{font-size:10px;color:var(--muted)}
+.stage-char-row{display:flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;margin-bottom:6px;background:var(--panel2);font-size:12px;cursor:pointer}
+.stage-char-row.sel{border-color:var(--accent);background:rgba(59,130,246,.12)}
+.stage-char-row .grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{padding:3px 7px;font-size:11px;flex-shrink:0}
+.pill{font-size:10px;border:1px solid var(--border);border-radius:20px;padding:2px 8px;color:var(--muted)}
+.note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
+.rec-item{border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;background:var(--panel2)}
+.rec-item video{width:100%;border-radius:6px;margin-top:6px;background:#000}
+.drop{border:1px dashed var(--border);border-radius:8px;padding:14px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;transition:border-color .15s}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--text)}
+.mini-editor .row{margin-bottom:6px}
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:99;box-shadow:0 8px 30px rgba(0,0,0,.5);display:none;max-width:90vw}
+.toast.err{border-color:var(--danger)}
+
+/* perform mode */
+body.perform .topbar,body.perform .side,body.perform .transport{display:none}
+body.perform .stage-area{background:#000}
+.exit-perform{position:fixed;top:10px;right:10px;z-index:50;opacity:0;transition:opacity .2s;display:none}
+body.perform .exit-perform{display:block}
+body.perform .exit-perform:hover,body.perform.show-cursor .exit-perform{opacity:1}
+
+/* mobile */
+.side-toggle{display:none}
+@media (max-width:900px){
+  .main{flex-direction:column}
+  .side{width:100%;height:46%;border-left:0;border-top:1px solid var(--border)}
+  .side.hidden{display:none}
+  .side-toggle{display:inline-block}
+  .now-playing{display:none}
+  .topbar h1{font-size:13px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Character <span>Stage</span></h1>
+  <select id="scene-select" class="scene-select fix" title="Scene"></select>
+  <button id="btn-scene-new" class="icon-btn" title="New scene">+ Scene</button>
+  <button id="btn-scene-rename" class="icon-btn">Rename</button>
+  <button id="btn-scene-del" class="icon-btn danger">Delete</button>
+  <span class="spacer"></span>
+  <span id="save-dot" class="save-dot">Saved</span>
+  <select id="aspect" class="fix" style="width:auto" title="Stage aspect">
+    <option value="16:9">16:9 landscape</option>
+    <option value="9:16">9:16 vertical</option>
+    <option value="1:1">1:1 square</option>
+  </select>
+  <button id="btn-perform" title="Hide all UI — clean output for screen share / OBS / livestream">Perform</button>
+  <button id="btn-record" class="primary">Record</button>
+  <button class="side-toggle" id="btn-side-toggle">Panel</button>
+</div>
+
+<div class="main">
+  <div class="stage-wrap">
+    <div class="stage-area" id="stage-area">
+      <div class="stage-holder" id="stage-holder">
+        <iframe id="bg-embed" style="display:none" allow="autoplay" title="Custom background"></iframe>
+        <canvas id="stage"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="stage-hint" id="stage-hint">Add a character from the panel, pick an audio source, press play.<br>Drag characters to move. Drag the corner handle or scroll to resize.</div>
+    </div>
+    <div class="transport">
+      <button id="btn-play" disabled>Play</button>
+      <span class="time" id="time-cur">0:00</span>
+      <input type="range" id="seek" min="0" max="1000" value="0" disabled>
+      <span class="time" id="time-dur">0:00</span>
+      <button id="btn-loop" class="icon-btn" title="Loop">Loop: off</button>
+      <div class="amp-meter" title="Mouth-drive level"><i id="amp-fill"></i></div>
+      <span class="now-playing" id="now-playing">No audio selected</span>
+    </div>
+  </div>
+
+  <div class="side" id="side">
+    <div class="side-tabs">
+      <button data-tab="chars" class="on">Characters</button>
+      <button data-tab="audio">Audio</button>
+      <button data-tab="bg">Background</button>
+      <button data-tab="rec">Recordings</button>
+    </div>
+    <div class="side-body">
+
+      <div class="tab" id="tab-chars">
+        <div class="section-title">On stage</div>
+        <div id="stage-chars"></div>
+        <div id="sel-controls" style="display:none">
+          <div class="section-title">Selected character</div>
+          <label class="mini">Size</label>
+          <input type="range" id="c-scale" min="10" max="200" value="60">
+          <label class="mini">Mouth sensitivity (how easily the mouth opens)</label>
+          <input type="range" id="c-sens" min="10" max="300" value="100">
+          <label class="mini" style="margin-top:10px"><input type="checkbox" id="c-autoemote" checked> Auto emotions — expressions ride the music (surprised on hits, hyped when loud, chill when quiet)</label>
+          <label class="mini">Mood (when auto emotions is off)</label>
+          <select id="c-mood">
+            <option>neutral</option><option>happy</option><option>sad</option><option>angry</option>
+            <option>thinking</option><option>surprised</option><option>listening</option>
+          </select>
+          <label class="mini">Lock eyes (overrides moods — pick any eye style)</label>
+          <select id="c-eyes"></select>
+          <label class="mini" id="c-mouthshape-label" style="display:none">Static mouth shape</label>
+          <select id="c-mouthshape" style="display:none"></select>
+          <div class="row" style="margin-top:8px">
+            <button id="c-flip">Flip</button>
+            <button id="c-front">To front</button>
+            <button id="c-back">To back</button>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <button id="c-mute">Mouth: live</button>
+            <button id="c-dup">Duplicate</button>
+            <button id="c-remove" class="danger">Remove</button>
+          </div>
+        </div>
+        <div class="section-title">Saved characters <button id="btn-chars-reload" class="icon-btn" style="float:right;margin-top:-4px">Reload</button></div>
+        <div class="char-grid" id="saved-chars"></div>
+        <div class="note" id="saved-chars-note"></div>
+        <div class="section-title">Quick custom character</div>
+        <div class="mini-editor" id="mini-editor"></div>
+        <div class="row" style="margin-top:8px">
+          <button id="btn-random">Randomize</button>
+          <button id="btn-add-custom" class="primary">Add to stage</button>
+        </div>
+      </div>
+
+      <div class="tab" id="tab-audio" style="display:none">
+        <div class="section-title">Upload audio or video</div>
+        <div class="drop" id="audio-drop">Drop a file here or click to browse.<br>Audio (mp3, wav, m4a...) or video (mp4, mov, webm) — from video only the sound is used, unless you also set it as the background. Max 100 MB.</div>
+        <input type="file" id="audio-file" accept="audio/*,video/*" style="display:none">
+        <div class="row" id="video-as-bg-row" style="display:none;margin-top:8px">
+          <label style="font-size:12px"><input type="checkbox" id="video-as-bg"> Show this video as the stage background</label>
+        </div>
+        <div class="section-title">Mouth tracking</div>
+        <select id="amp-mode">
+          <option value="voice">Voice band — mouths follow the vocal frequencies (default)</option>
+          <option value="mix">Full mix — mouths follow overall loudness</option>
+        </select>
+        <div class="note">For AI-generated (Suno) songs, use <b>Lock to voice</b> on the track below — it pulls the real vocals-only stem from the Suno API, so mouths follow the actual singing exactly while the full song plays.</div>
+        <div class="section-title">Microphone (live)</div>
+        <button id="btn-mic">Use microphone</button>
+        <div class="note">Live mode for streams: your voice (or any sound reaching the mic) drives the mouths in real time.</div>
+        <div class="section-title">Music library</div>
+        <div id="music-list"></div>
+        <div class="section-title">AI-generated songs</div>
+        <div id="generated-list"></div>
+        <div class="section-title">Uploaded files</div>
+        <div id="uploads-list"></div>
+      </div>
+
+      <div class="tab" id="tab-bg" style="display:none">
+        <div class="section-title">Upload a background</div>
+        <div class="drop" id="bg-media-drop">Drop an image or video here (or click) — it becomes the background instantly. Max 100 MB.</div>
+        <input type="file" id="bg-media-file" accept="image/*,video/*" style="display:none">
+        <div class="section-title">Background type</div>
+        <select id="bg-type">
+          <option value="color">Solid color</option>
+          <option value="image">Image</option>
+          <option value="video">Video file</option>
+          <option value="embed">Custom page / embed (URL)</option>
+        </select>
+        <div id="bg-color-ctl" style="margin-top:8px">
+          <div class="row"><input type="color" id="bg-color" value="#0a0f1a" class="fix"><span class="note" style="margin:0">Pick a stage color</span></div>
+        </div>
+        <div id="bg-image-ctl" style="display:none;margin-top:8px">
+          <label class="mini">Image URL (any image; /uploads/... works)</label>
+          <div class="row"><input type="url" id="bg-image-url" placeholder="/uploads/my-background.png"><button id="bg-image-apply" class="fix">Set</button></div>
+          <div class="drop" id="bg-drop" style="margin-top:8px">Or drop / click to upload an image</div>
+          <input type="file" id="bg-file" accept="image/*" style="display:none">
+        </div>
+        <div id="bg-video-ctl" style="display:none;margin-top:8px">
+          <label class="mini">Video URL (mp4/webm — e.g. a Remotion render in /uploads/)</label>
+          <div class="row"><input type="url" id="bg-video-url" placeholder="/uploads/my-render.mp4"><button id="bg-video-apply" class="fix">Set</button></div>
+          <label class="mini" style="margin-top:6px"><input type="checkbox" id="bg-video-mute" checked> Mute background video (keep on unless it IS the soundtrack)</label>
+        </div>
+        <div id="bg-embed-ctl" style="display:none;margin-top:8px">
+          <label class="mini">Page URL — anything the AI built: a canvas page, raw-code animation, live site</label>
+          <div class="row"><input type="url" id="bg-embed-url" placeholder="/pages/my-animated-bg.html"><button id="bg-embed-apply" class="fix">Set</button></div>
+          <div class="note">Embed backgrounds show behind the characters but are NOT captured by the built-in recorder — use Perform mode + screen capture (or OBS) to record scenes with an embed background.</div>
+        </div>
+        <label class="mini">Fit</label>
+        <select id="bg-fit">
+          <option value="cover">Cover (fill, crop edges)</option>
+          <option value="contain">Contain (letterbox)</option>
+          <option value="stretch">Stretch</option>
+        </select>
+        <div class="note">Want an AI-made background? Ask the agent to generate an image or build an animated page, then point at it here.</div>
+        <div class="section-title">Your uploads <button id="bg-gal-refresh" class="icon-btn" style="float:right;margin-top:-4px">Refresh</button></div>
+        <div class="char-grid" id="bg-gal-uploads"><div class="note">Loading...</div></div>
+        <div class="section-title">BigHead scene backgrounds</div>
+        <div class="char-grid" id="bg-gal-scenes"></div>
+        <div class="section-title">BHB artwork</div>
+        <div class="char-grid" id="bg-gal-art"></div>
+      </div>
+
+      <div class="tab" id="tab-rec" style="display:none">
+        <div class="section-title">Record the stage</div>
+        <div class="note">Recording captures the stage exactly at output resolution (<span id="rec-res">1920×1080</span>) plus the playing audio, and saves the file to the server the moment you stop. Selection outlines are never recorded.</div>
+        <div class="row" style="margin-top:8px">
+          <button id="btn-record2" class="primary">Start recording</button>
+        </div>
+        <div class="section-title">For livestreams</div>
+        <div class="note">Press Perform to get a clean full-screen stage, then window-capture it in OBS or a browser tab share. Mic mode keeps the mouths live while you talk.</div>
+        <div class="section-title">Saved recordings</div>
+        <div id="rec-list"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<button class="exit-perform" id="btn-exit-perform">Exit perform</button>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================================
+ * Character Stage — layered BigHead characters lip-syncing to ANY audio.
+ * Engine adapted from plugins/bhb-animated-characters/faces/BigHeadFace.js
+ * (multi-instance, positionable). All state persists server-side via
+ * /api/canvas/data/character-stage-scenes.json — no localStorage, ever.
+ * ==========================================================================*/
+
+// ── Asset CDN + trait catalogs (same source as the character creator) ──────
+const CDN = 'https://bhaleyart.github.io/BigHeadCharacterCooker';
+const TRAITS = {
+  BODY: ['Blank','Charcoal','High Voltage','Nebulous','Pinky','Shockwave','Tangerine','Turquoise','Woody','Frogger','Area 51','Dark Tone','Mid Tone','Light Tone','Jolly Roger','Cyber Punk','Talking Corpse','Day Tripper','Meat Lover','Golden God','Chrome Dome','Candy Gloss','Man On Fire','Water Boy','Icecream Man','Reptilian','Juiced Up','Toxic Waste','Love Potion','Pop Artist','Autopsy','Ghostly','Blue Screen','Networker'],
+  HEAD: ['None','Antenna','Bandana Bro','Beanie','Blonde Beanie','Blonde Bun','Blue Bedhead','Brain Squid','Bravo','Brunette Beanie','Brunette Ponytail','Burger Crown','Captain Hat','Cat Hat','Chad Bandana','Cherry Sundae','Clown Wig','Fancy Hat','Fireman','Flame Princess','Fossilized','Gamer Girl','Ginger Ponytail','Heated','Horny Horns','Hunted','Jester','Kingly','Mad Hatter','Masked Up','Mohawk Blue','Mohawk Green','Mohawk Red','Mortricia','Outlaw','Overload','Patrol Cap','Pharaoh Hat','Pink Pigtails','Powdered Wig','Press Pass','Propeller','Rainbow Babe','Recon Helmet','Robin Hood','Santa Hat','Sewer Slime','Snapback Blue','Snapback Hippy','Snapback Red','Snapback Yellow','Sombrero','Spiritual','Surgeon','UwU Kitty','Valhalla Cap','Way Dizzy'],
+  EYES: ['Curious','Alien','Annoyed','Demonic','Diamond','Dots','Grumpy','Hypnotized','Infuriated','Insect','Joy','Light Bright','Monocle','Ouchy','Paranoid','Possessed','Ruby Stare','Spider','Stare','Stoney Eyes','Sunglasses','Surprised','Tears','Deceased','Too Chill','VR Headset','3D Glasses','Blink','Stern'],
+  MOUTH: ['Mmm','Simpleton','Stache','Creeper','Pierced','Fangs','Gold Teeth','Diamond Teeth','Birdy','Panic','Sss','Ahh','Ehh','Uhh','LLL','Rrr','Fff','Ooo','Thh','Eee','Haha','Rofl','Bean Frown','Bean Smile','Smirk','Bored','Gas Mask','Scuba'],
+  OUTFIT: ['None','Blue Tee','Blueberry Dye','Degen Green','Degen Purple','Earthy Dye','Hodl Black','Hodl White','Locked Up','Moto-X','Orange Zip','Passion Dye','Pink Zip','Raider Ref','Red Tee','Smally Bigs','Yellow Tee','Blue Zip','Red Zip','White Zip','Hornet Zip','Ghostly Zip','Gold Jacket','Tuxedo','Thrashed','The Fuzz','Pin Striped','Designer Zip','Luxury Zip','Explorer','Power Armor','Shinobi','Thrilled','Trenches','Ski Jacket','Sled Jacket','Commando','Space Cadet','Burgler','Commandant','Golden Knight','Honey Bee','Necromancer','Paladin','Refined Suit','Sexy Jacket','Stoner Hoodie','The Duke','Rave Hoodie','Scuba suit temp','Burger Suit','Scrubs'],
+  TEXTURE: ['None','Blood','Acid','Ink','Dart Frog Blue','Dart Frog Red','Dart Frog Yellow','Magical','Puzzled','Rug Life Ink','Pulverized'],
+  BACKGROUNDS: ['None','Natural','Mania','Regal','Lavish','Sunflower','Snowflake','Bleach','Vibes','Burst','Aquatic','Passionate','Envious','Enlightened','Haunted','Cursed']
+};
+const VISEME_SHAPES = ['Mmm','Eee','Ehh','Ahh'];
+// Thresholds on the NORMALIZED (0–1, envelope-relative) level — see AudioEngine.amplitude().
+// Raw-RMS thresholds pinned mouths open on music: a song's loudness sits above
+// an absolute threshold continuously, so shapes must follow relative dynamics.
+const VISEME_THRESHOLDS = [0.30, 0.55, 0.80];
+const MOOD_TO_EXPRESSION = { neutral:'Stare', happy:'Joy', sad:'Ouchy', angry:'Infuriated', thinking:'Curious', surprised:'Surprised', listening:'Stern' };
+// Auto-emote pools by energy level — the 7 subset-safe expressions, so characters
+// with SUBSET eye types (Alien, Sunglasses, ...) get their own variants too.
+const EMOTE_POOLS = {
+  high: ['Joy','Surprised','Infuriated','Joy'],
+  mid:  ['Stare','Stern','Curious','Joy'],
+  low:  ['Curious','Ouchy','Stare','Stern']
+};
+const ALL_EXPRESSIONS = ['Stare','Joy','Ouchy','Infuriated','Curious','Surprised','Stern'];
+const SUBSET_PREFIX = {
+  'Alien':'alien','Demonic':'demonic','Diamond':'diamond','Dots':'dots','Hypnotized':'hypnotized',
+  'Light Bright':'lightbright','Monocle':'monocle','Possessed':'possesed','Ruby Stare':'ruby',
+  'Spider':'spider','Stoney Eyes':'stoneyeyes','Sunglasses':'sunglasses','3D Glasses':'3dglasses',
+  'Annoyed':'annoyed','Deceased':'deceased','Grumpy':'grumpy','Insect':'insect','Paranoid':'paranoid',
+  'Too Chill':'toochill','VR Headset':'vrheadset'
+};
+const FULL_SUBSET = new Set(['alien','demonic','diamond','dots','hypnotized','lightbright','monocle','possesed','ruby','spider','stoneyeyes','sunglasses','3dglasses']);
+const SUBSET_EXPRESSIONS = ['blink','curious','infuriated','joy','ouchy','stern','surprised'];
+const PARTIAL_SUBSET = { annoyed:['blink'], deceased:['blink','ouchy'], grumpy:['ouchy'], insect:['ouchy'], paranoid:['ouchy'], toochill:['blink'] };
+const DEFAULT_TRAITS = { BODY:'Mid Tone', HEAD:'Outlaw', EYES:'Curious', MOUTH:'Mmm', OUTFIT:'Tuxedo', TEXTURE:'None', BACKGROUNDS:'None', female:false };
+// BACKGROUNDS intentionally excluded — the stage supplies the background.
+const CHAR_LAYERS = ['BODY','TEXTURE','OUTFIT','HEAD','MOUTH','EYES'];
+const EDITOR_CATS = ['BODY','HEAD','EYES','MOUTH','OUTFIT','TEXTURE'];
+
+const DATA_FILE = 'character-stage-scenes.json';
+const ASPECTS = { '16:9':[1920,1080], '9:16':[1080,1920], '1:1':[1080,1080] };
+
+// ── Shared image cache ──────────────────────────────────────────────────────
+const imgCache = {};
+function imgUrl(cat, name){
+  if (cat === 'EYELASHES' || cat === 'BREASTS') return `${CDN}/GIRL/${encodeURIComponent(name)}.png`;
+  return `${CDN}/${cat}/${encodeURIComponent(name)}.png`;
+}
+function loadImage(url){
+  if (imgCache[url]) return Promise.resolve(imgCache[url]);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';           // CDN sends ACAO:* — keeps the stage canvas clean for recording
+    img.onload = () => { imgCache[url] = img; resolve(img); };
+    img.onerror = () => reject(new Error('img fail: ' + url));
+    img.src = url;
+  });
+}
+
+// ── StageCharacter — one positioned, lip-syncing character ─────────────────
+let charSeq = 1;
+class StageCharacter {
+  constructor(traits, opts = {}) {
+    this.uid = opts.uid || ('c' + (charSeq++) + '-' + Math.random().toString(36).slice(2, 7));
+    this.name = opts.name || traits.name || 'Character';
+    this.traits = { ...DEFAULT_TRAITS, ...traits, BACKGROUNDS: 'None' };
+    this.x = opts.x ?? 0.5;                 // center, normalized to stage width
+    this.y = opts.y ?? 0.55;                // center, normalized to stage height
+    this.scale = opts.scale ?? 0.6;         // height as fraction of stage height
+    this.flip = !!opts.flip;
+    this.z = opts.z ?? 0;
+    this.sensitivity = opts.sensitivity ?? 1.0;
+    this.mood = opts.mood || 'neutral';
+    this.autoEmote = opts.autoEmote !== false;   // expressions ride the audio energy
+    this.eyesOverride = opts.eyesOverride || ''; // lock a specific EYES image ('' = expressive)
+    this.mouthShape = opts.mouthShape || '';     // static mouth shape when mouthLive=false
+    this.mouthLive = opts.mouthLive !== false;   // false = frozen on mouthShape/trait mouth
+    this.currentExpr = 'Stare';
+    this._energyAvg = 0;
+    this._prevAmp = 0;
+    this._nextEmoteAt = 0;
+    this.amplitude = 0;
+    this.viseme = 'Mmm';
+    this.blinking = false;
+    this.bobPhase = Math.random() * 6.28;   // desync bobbing between characters
+    this.layers = {};
+    this.eyeExpr = {};
+    this.ready = false;
+    this._blinkTimer = null;
+    this._scheduleBlink();
+  }
+
+  serialize(){
+    return { uid:this.uid, name:this.name, traits:this.traits, x:this.x, y:this.y,
+      scale:this.scale, flip:this.flip, z:this.z, sensitivity:this.sensitivity,
+      mood:this.mood, mouthLive:this.mouthLive, autoEmote:this.autoEmote,
+      eyesOverride:this.eyesOverride, mouthShape:this.mouthShape };
+  }
+  static deserialize(d){ return new StageCharacter(d.traits, d); }
+
+  async load(){
+    const jobs = [];
+    for (const layer of CHAR_LAYERS) {
+      const name = this.traits[layer];
+      if (!name || name === 'None') { this.layers[layer] = null; continue; }
+      jobs.push(loadImage(imgUrl(layer, name)).then(i => this.layers[layer] = i).catch(() => this.layers[layer] = null));
+    }
+    if (this.traits.female) {
+      jobs.push(loadImage(imgUrl('BREASTS','Breasts')).catch(() => null));
+      jobs.push(loadImage(imgUrl('EYELASHES','Eyelashes')).catch(() => null));
+    }
+    for (const shape of VISEME_SHAPES) jobs.push(loadImage(imgUrl('MOUTH', shape)).catch(() => null));
+    for (const expr of ALL_EXPRESSIONS) jobs.push(loadImage(imgUrl('EYES', expr)).catch(() => null));
+    jobs.push(loadImage(imgUrl('EYES','Blink')).catch(() => null));
+    if (this.eyesOverride) jobs.push(loadImage(imgUrl('EYES', this.eyesOverride)).catch(() => null));
+    if (this.mouthShape) jobs.push(loadImage(imgUrl('MOUTH', this.mouthShape)).catch(() => null));
+    const prefix = SUBSET_PREFIX[this.traits.EYES];
+    if (prefix) {
+      const exprs = FULL_SUBSET.has(prefix) ? SUBSET_EXPRESSIONS : (PARTIAL_SUBSET[prefix] || []);
+      for (const e of exprs) jobs.push(loadImage(`${CDN}/EYES/SUBSET/${prefix}-${e}.png`).then(i => this.eyeExpr[`${prefix}-${e}`] = i).catch(() => {}));
+      jobs.push(loadImage(`${CDN}/EYES/SUBSET/${prefix}.png`).then(i => this.eyeExpr[`${prefix}-base`] = i).catch(() => {}));
+    }
+    await Promise.allSettled(jobs);
+    this.ready = true;
+  }
+
+  _scheduleBlink(){
+    this._blinkTimer = setTimeout(() => {
+      this.blinking = true;
+      setTimeout(() => { this.blinking = false; this._scheduleBlink(); }, 150);
+    }, 2000 + Math.random() * 4000);
+  }
+  destroy(){ if (this._blinkTimer) clearTimeout(this._blinkTimer); }
+
+  _eyeImage(){
+    const prefix = SUBSET_PREFIX[this.traits.EYES];
+    if (this.blinking) {
+      if (prefix && this.eyeExpr[`${prefix}-blink`]) return this.eyeExpr[`${prefix}-blink`];
+      return imgCache[imgUrl('EYES','Blink')] || this.layers.EYES;
+    }
+    // Locked eyes beat everything (except blinks)
+    if (this.eyesOverride) return imgCache[imgUrl('EYES', this.eyesOverride)] || this.layers.EYES;
+    const expression = this.autoEmote ? this.currentExpr : (MOOD_TO_EXPRESSION[this.mood] || 'Stare');
+    if (prefix) {
+      const key = `${prefix}-${expression.toLowerCase()}`;
+      if (this.eyeExpr[key]) return this.eyeExpr[key];
+      if (this.eyeExpr[`${prefix}-base`]) return this.eyeExpr[`${prefix}-base`];
+    }
+    return imgCache[imgUrl('EYES', expression)] || this.layers.EYES;
+  }
+  _mouthImage(){
+    if (!this.mouthLive) {
+      if (this.mouthShape) return imgCache[imgUrl('MOUTH', this.mouthShape)] || this.layers.MOUTH;
+      return this.layers.MOUTH;
+    }
+    return imgCache[imgUrl('MOUTH', this.viseme)] || this.layers.MOUTH;
+  }
+
+  update(normAmp, dt, now){
+    const target = Math.min(1, normAmp * this.sensitivity);    // normAmp is already 0–1 envelope-relative
+    // fast attack, faster-than-before release so the mouth actually closes between
+    // words/phrases instead of hanging open on the smoothed tail
+    this.amplitude += (target - this.amplitude) * (target > this.amplitude ? 0.55 : 0.28);
+    const a = this.amplitude;
+    this.viseme = a > VISEME_THRESHOLDS[2] ? 'Ahh' : a > VISEME_THRESHOLDS[1] ? 'Ehh' : a > VISEME_THRESHOLDS[0] ? 'Eee' : 'Mmm';
+
+    // Auto-emote: expressions ride the audio. Sharp hits snap to Surprised;
+    // otherwise re-pick every few seconds from a pool matched to recent energy.
+    if (this.autoEmote && !this.eyesOverride) {
+      this._energyAvg += (a - this._energyAvg) * 0.02;          // slow EMA of the vibe
+      if (a - this._prevAmp > 0.45 && now > this._nextEmoteAt - 1500) {
+        this.currentExpr = 'Surprised';
+        this._nextEmoteAt = now + 1400;
+      } else if (now >= this._nextEmoteAt) {
+        const pool = this._energyAvg > 0.5 ? EMOTE_POOLS.high : this._energyAvg > 0.18 ? EMOTE_POOLS.mid : EMOTE_POOLS.low;
+        let pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick === this.currentExpr) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
+        this.currentExpr = pick;
+        this._nextEmoteAt = now + 2500 + Math.random() * 4000;
+      }
+      this._prevAmp = a;
+    }
+
+    this.bobPhase += dt * (2 + a * 6);
+    const bob = a > 0.15 ? Math.sin(this.bobPhase) * 3 * a : 0;
+    const breathe = a < 0.15 ? Math.sin(now * 0.002 + this.bobPhase) * 1.5 : 0;
+    this.bobY = (bob + breathe) / 1000;      // in source-image units → scaled on draw
+  }
+
+  // rect in stage pixels (characters are square 1000×1000 sources)
+  rect(W, H){
+    const size = this.scale * H;
+    return { x: this.x * W - size / 2, y: this.y * H - size / 2, w: size, h: size };
+  }
+
+  draw(ctx, W, H){
+    const r = this.rect(W, H);
+    const bobPx = (this.bobY || 0) * r.h;
+    ctx.save();
+    if (this.flip) { ctx.translate(r.x + r.w / 2, 0); ctx.scale(-1, 1); ctx.translate(-(r.x + r.w / 2), 0); }
+    const dl = (img) => { if (img) ctx.drawImage(img, r.x, r.y + bobPx, r.w, r.h); };
+    dl(this.layers.BODY);
+    dl(this.layers.TEXTURE);
+    dl(this.layers.OUTFIT);
+    if (this.traits.female) dl(imgCache[imgUrl('BREASTS','Breasts')]);
+    dl(this.layers.HEAD);
+    dl(this._mouthImage());
+    if (this.traits.female) dl(imgCache[imgUrl('EYELASHES','Eyelashes')]);
+    dl(this._eyeImage());
+    ctx.restore();
+  }
+}
+
+// ── Audio engine ────────────────────────────────────────────────────────────
+const AudioEngine = {
+  ctx: null, analyser: null, masterGain: null, recDest: null,
+  mediaEl: null, analysisEl: null, sourceNodes: new Map(), micStream: null, micNode: null,
+  mode: 'voice', _td: null, _fd: null,
+
+  // Topology: AUDIBLE path (source → masterGain → speakers + recDest) is separate
+  // from the ANALYSIS path (source → analyser, which connects to nothing). This
+  // lets a silent vocal stem drive the mouths while the full mix plays out loud.
+  ensure(){
+    if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.masterGain = this.ctx.createGain();
+    this.recDest = this.ctx.createMediaStreamDestination();
+    this.masterGain.connect(this.ctx.destination);
+    this.masterGain.connect(this.recDest);
+    this._td = new Uint8Array(this.analyser.fftSize);
+    this._fd = new Uint8Array(this.analyser.frequencyBinCount);
+  },
+
+  _nodeFor(el){
+    if (!this.sourceNodes.has(el)) this.sourceNodes.set(el, this.ctx.createMediaElementSource(el));  // one-time per element
+    return this.sourceNodes.get(el);
+  },
+  _rewire(){
+    this.sourceNodes.forEach(n => { try { n.disconnect(); } catch(_){} });
+    if (this.mediaEl && this.sourceNodes.has(this.mediaEl)) {
+      const n = this.sourceNodes.get(this.mediaEl);
+      n.connect(this.masterGain);                       // audible
+      if (!this.analysisEl) n.connect(this.analyser);   // ...and mouth-driving unless a stem owns that
+    }
+    if (this.analysisEl && this.sourceNodes.has(this.analysisEl)) {
+      this.sourceNodes.get(this.analysisEl).connect(this.analyser);   // analysis only — never audible
+    }
+  },
+
+  // Attach a media element (audio or video) as THE audible source.
+  useElement(el){
+    this.ensure();
+    this.stopMic();
+    if (this.mediaEl && this.mediaEl !== el) { try { this.mediaEl.pause(); } catch(_){} }
+    this.mediaEl = el;
+    this._nodeFor(el);
+    this._rewire();
+  },
+
+  // Attach (or clear) a silent element whose audio drives the mouths — e.g. a
+  // vocals-only stem playing in sync with the audible full mix.
+  setAnalysisElement(el){
+    this.ensure();
+    if (this.analysisEl && this.analysisEl !== el) { try { this.analysisEl.pause(); } catch(_){} }
+    this.analysisEl = el || null;
+    if (el) this._nodeFor(el);
+    this._rewire();
+    this._peak = 0.02; this._floor = 0; this._prevNorm = 0;   // reset the envelope for the new signal
+  },
+
+  async useMic(){
+    this.ensure();
+    if (this.mediaEl) { try { this.mediaEl.pause(); } catch(_){} }
+    this.setAnalysisElement(null);
+    this.sourceNodes.forEach(n => { try { n.disconnect(); } catch(_){} });
+    this.micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.micNode = this.ctx.createMediaStreamSource(this.micStream);
+    // mic → analyser (mouths) + → recDest (recordings include the voice).
+    // Never → speakers: no feedback. The audible masterGain path is untouched.
+    this.micNode.connect(this.analyser);
+    this.micNode.connect(this.recDest);
+  },
+  stopMic(){
+    if (this.micStream) { this.micStream.getTracks().forEach(t => t.stop()); this.micStream = null; }
+    if (this.micNode) { try { this.micNode.disconnect(); } catch(_){} this.micNode = null; }
+  },
+
+  _peak: 0.02, _floor: 0, _prevNorm: 0,
+  amplitude(){
+    if (!this.analyser) return 0;
+    let raw;
+    if (this.mode === 'voice') {
+      // Average energy in ~300–3400 Hz (the vocal band) — follows singing, ignores bass/kick.
+      this.analyser.getByteFrequencyData(this._fd);
+      const hz = this.ctx.sampleRate / this.analyser.fftSize;   // per-bin width
+      const lo = Math.max(0, Math.floor(300 / hz));
+      const hi = Math.min(this._fd.length - 1, Math.ceil(3400 / hz));
+      let sum = 0;
+      for (let i = lo; i <= hi; i++) sum += this._fd[i];
+      raw = (sum / (hi - lo + 1)) / 255 * 0.5;                  // scaled to roughly match RMS range
+    } else {
+      this.analyser.getByteTimeDomainData(this._td);
+      let sum = 0;
+      for (let i = 0; i < this._td.length; i++) { const v = (this._td[i] - 128) / 128; sum += v * v; }
+      raw = Math.sqrt(sum / this._td.length);
+    }
+    // Adaptive envelope: normalize between a rolling FLOOR and a rolling PEAK so
+    // the mouth tracks the audio's DYNAMICS, not its absolute loudness. The peak
+    // stops loud songs pinning the mouth open; the floor rises under a steady
+    // mix so sustained instrumental loudness reads as "nothing new" and the
+    // mouth relaxes — only what pokes above the bed (vocals, hits) opens it.
+    this._peak = Math.max(raw, this._peak * 0.995, 0.02);        // ~2s half-life at 60fps
+    if (raw < this._floor) this._floor += (raw - this._floor) * 0.2;      // drop fast
+    else this._floor += (raw - this._floor) * 0.004;             // creep up over ~4s
+    this._floor = Math.min(this._floor, this._peak * 0.7);       // keep usable span
+    if (raw < 0.008) { this._prevNorm = 0; return 0; }           // silence gate
+    const span = Math.max(0.005, this._peak - this._floor);
+    let norm = Math.min(1, Math.max(0, (raw - this._floor) / span));
+    // Onset emphasis: syllables/hits are attacks — boost rising edges so the
+    // mouth pops on them, while a plateau (already counted) settles back down.
+    const rise = Math.max(0, norm - (this._prevNorm || 0));
+    this._prevNorm = norm;
+    return Math.min(1, norm * 0.75 + rise * 2.2);
+  }
+};
+
+// ── Stage ───────────────────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const stageC = $('stage'), overlayC = $('overlay');
+const sctx = stageC.getContext('2d'), octx = overlayC.getContext('2d');
+
+const Stage = {
+  chars: [], selected: null, aspect: '16:9', W: 1920, H: 1080,
+  bg: { type: 'color', color: '#0a0f1a', url: '', fit: 'cover', mute: true },
+  bgImage: null, bgVideo: null, lastTime: 0,
+
+  setAspect(a){
+    if (!ASPECTS[a]) a = '16:9';
+    this.aspect = a;
+    [this.W, this.H] = ASPECTS[a];
+    stageC.width = this.W; stageC.height = this.H;
+    overlayC.width = this.W; overlayC.height = this.H;
+    $('rec-res').textContent = `${this.W}×${this.H}`;
+    this.fit();
+  },
+  fit(){
+    const area = $('stage-area');
+    const pad = 16;
+    const aw = area.clientWidth - pad, ah = area.clientHeight - pad;
+    const s = Math.min(aw / this.W, ah / this.H);
+    const holder = $('stage-holder');
+    holder.style.width = Math.floor(this.W * s) + 'px';
+    holder.style.height = Math.floor(this.H * s) + 'px';
+  },
+
+  addChar(c){
+    c.z = this.chars.length ? Math.max(...this.chars.map(x => x.z)) + 1 : 1;
+    this.chars.push(c);
+    c.load().then(() => UI.renderStageChars());
+    this.select(c);
+    UI.renderStageChars();
+    markDirty();
+    $('stage-hint').style.display = 'none';
+  },
+  removeChar(c){
+    c.destroy();
+    this.chars = this.chars.filter(x => x !== c);
+    if (this.selected === c) this.select(null);
+    UI.renderStageChars(); markDirty();
+  },
+  select(c){
+    this.selected = c;
+    UI.syncSelection();
+  },
+  sorted(){ return [...this.chars].sort((a, b) => a.z - b.z); },
+  hitTest(px, py){
+    const list = this.sorted().reverse();
+    for (const c of list) {
+      const r = c.rect(this.W, this.H);
+      if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) return c;
+    }
+    return null;
+  },
+
+  async setBackground(bg){
+    this.bg = { ...this.bg, ...bg };
+    this.bgImage = null;
+    if (this.bgVideo && this.bg.type !== 'video') { this.bgVideo.pause(); this.bgVideo = null; }
+    $('bg-embed').style.display = 'none';
+    if (this.bg.type === 'image' && this.bg.url) {
+      const img = new Image();
+      // same-origin /uploads/ or remote; remote without CORS taints recordings — try anonymous
+      img.crossOrigin = 'anonymous';
+      img.onload = () => { this.bgImage = img; };
+      img.onerror = () => { img.crossOrigin = null; const i2 = new Image(); i2.onload = () => this.bgImage = i2; i2.src = this.bg.url; };
+      img.src = this.bg.url;
+    } else if (this.bg.type === 'video' && this.bg.url) {
+      const v = document.createElement('video');
+      v.crossOrigin = 'anonymous'; v.loop = true; v.muted = this.bg.mute !== false; v.playsInline = true;
+      v.src = this.bg.url;
+      v.play().catch(() => {});
+      this.bgVideo = v;
+    } else if (this.bg.type === 'embed' && this.bg.url) {
+      const f = $('bg-embed');
+      if (f.src !== this.bg.url) f.src = this.bg.url;
+      f.style.display = 'block';
+    }
+    markDirty();
+  },
+
+  drawBackground(ctx){
+    const { W, H } = this;
+    if (this.bg.type === 'embed') { ctx.clearRect(0, 0, W, H); return; }   // transparent — iframe shows through
+    ctx.fillStyle = this.bg.color || '#0a0f1a';
+    ctx.fillRect(0, 0, W, H);
+    const src = this.bg.type === 'image' ? this.bgImage
+              : this.bg.type === 'video' && this.bgVideo && this.bgVideo.readyState >= 2 ? this.bgVideo
+              : null;
+    if (!src) return;
+    const sw = src.videoWidth || src.naturalWidth, sh = src.videoHeight || src.naturalHeight;
+    if (!sw || !sh) return;
+    let dx = 0, dy = 0, dw = W, dh = H;
+    if (this.bg.fit === 'contain' || this.bg.fit === 'cover') {
+      const s = this.bg.fit === 'cover' ? Math.max(W / sw, H / sh) : Math.min(W / sw, H / sh);
+      dw = sw * s; dh = sh * s; dx = (W - dw) / 2; dy = (H - dh) / 2;
+    }
+    try { ctx.drawImage(src, dx, dy, dw, dh); } catch(_){}
+  },
+
+  render(now){
+    requestAnimationFrame((t) => this.render(t));
+    const dt = Math.min(0.05, (now - this.lastTime) / 1000 || 0.016);
+    this.lastTime = now;
+    const amp = AudioEngine.amplitude();
+    $('amp-fill').style.width = Math.min(100, amp * 100) + '%';
+
+    this.drawBackground(sctx);
+    for (const c of this.sorted()) { c.update(amp, dt, now); if (c.ready) c.draw(sctx, this.W, this.H); }
+
+    // overlay: selection adornments only (never recorded)
+    octx.clearRect(0, 0, this.W, this.H);
+    if (this.selected && !document.body.classList.contains('perform')) {
+      const r = this.selected.rect(this.W, this.H);
+      octx.strokeStyle = '#3b82f6'; octx.lineWidth = 3; octx.setLineDash([10, 6]);
+      octx.strokeRect(r.x, r.y, r.w, r.h);
+      octx.setLineDash([]);
+      octx.fillStyle = '#3b82f6';
+      const hs = 22;
+      octx.fillRect(r.x + r.w - hs / 2, r.y + r.h - hs / 2, hs, hs);   // resize handle (bottom-right)
+    }
+  }
+};
+
+// ── Persistence (server-side only) ──────────────────────────────────────────
+let doc = { scenes: {}, order: [], lastScene: null, recordings: [], stems: {} };
+let currentSceneId = null;
+let dirty = false, saveTimer = null;
+
+function markDirty(){
+  dirty = true;
+  $('save-dot').textContent = 'Unsaved'; $('save-dot').classList.add('dirty');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveDoc, 1200);
+}
+function captureScene(){
+  if (!currentSceneId) return;
+  const s = doc.scenes[currentSceneId];
+  if (!s) return;
+  s.aspect = Stage.aspect;
+  s.bg = { ...Stage.bg };
+  s.ampMode = AudioEngine.mode;
+  s.characters = Stage.chars.map(c => c.serialize());
+  s.audio = UI.currentAudio ? { ...UI.currentAudio } : null;
+  s.updated = Date.now();
+}
+async function saveDoc(){
+  captureScene();
+  try {
+    const res = await fetch('/api/canvas/data/' + DATA_FILE, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(doc)
+    });
+    if (!res.ok) throw new Error('save http ' + res.status);
+    dirty = false;
+    $('save-dot').textContent = 'Saved'; $('save-dot').classList.remove('dirty');
+  } catch (e) {
+    $('save-dot').textContent = 'Save failed — retrying'; $('save-dot').classList.add('dirty');
+    clearTimeout(saveTimer); saveTimer = setTimeout(saveDoc, 4000);
+  }
+}
+async function loadDoc(){
+  try {
+    const res = await fetch('/api/canvas/data/' + DATA_FILE);
+    const d = await res.json();
+    if (d && d.scenes) doc = { recordings: [], order: [], stems: {}, stemUnavailable: {}, ...d };
+  } catch (_) {}
+  if (!doc.stems) doc.stems = {};
+  if (!doc.stemUnavailable) doc.stemUnavailable = {};
+  if (!doc.order) doc.order = Object.keys(doc.scenes);
+  if (!doc.order.length) {
+    const id = 's' + Date.now();
+    doc.scenes[id] = { id, name: 'Scene 1', aspect: '16:9', bg: { type: 'color', color: '#0a0f1a', fit: 'cover' }, characters: [], audio: null, ampMode: 'voice' };
+    doc.order = [id]; doc.lastScene = id;
+  }
+}
+function openScene(id){
+  const s = doc.scenes[id];
+  if (!s) return;
+  // tear down current
+  Stage.chars.forEach(c => c.destroy());
+  Stage.chars = []; Stage.select(null);
+  currentSceneId = id; doc.lastScene = id;
+  Stage.setAspect(s.aspect || '16:9');
+  $('aspect').value = Stage.aspect;
+  Stage.setBackground(s.bg || { type: 'color', color: '#0a0f1a' });
+  AudioEngine.mode = s.ampMode || 'voice';
+  $('amp-mode').value = AudioEngine.mode;
+  UI.syncBgControls();
+  (s.characters || []).forEach(d => {
+    const c = StageCharacter.deserialize(d);
+    Stage.chars.push(c);
+    c.load().then(() => UI.renderStageChars());
+  });
+  $('stage-hint').style.display = Stage.chars.length ? 'none' : '';
+  UI.renderScenes(); UI.renderStageChars();
+  if (s.audio) UI.restoreAudio(s.audio);
+}
+
+// ── Recorder ────────────────────────────────────────────────────────────────
+const Recorder = {
+  rec: null, chunks: [], active: false, startedAt: 0,
+  start(){
+    if (this.active) return;
+    AudioEngine.ensure();
+    if (Stage.bg.type === 'embed') toast('Heads up: embed backgrounds are not captured by the built-in recorder — the characters will record over a blank background. Use Perform mode + screen capture for embeds.', true);
+    const stream = stageC.captureStream(30);
+    AudioEngine.recDest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    const mime = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    this.rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined);
+    this.chunks = [];
+    this.rec.ondataavailable = (e) => { if (e.data && e.data.size) this.chunks.push(e.data); };
+    this.rec.onstop = () => this._finish();
+    this.rec.start(1000);
+    this.active = true; this.startedAt = Date.now();
+    $('btn-record').textContent = 'Stop'; $('btn-record').classList.add('rec-on');
+    $('btn-record2').textContent = 'Stop recording'; $('btn-record2').classList.add('rec-on');
+  },
+  stop(){ if (this.rec && this.active) this.rec.stop(); },
+  async _finish(){
+    this.active = false;
+    $('btn-record').textContent = 'Record'; $('btn-record').classList.remove('rec-on');
+    $('btn-record2').textContent = 'Start recording'; $('btn-record2').classList.remove('rec-on');
+    const blob = new Blob(this.chunks, { type: 'video/webm' });
+    this.chunks = [];
+    if (!blob.size) { toast('Recording was empty.', true); return; }
+    // SAVE TO SERVER IMMEDIATELY — generated content never lives only in the browser.
+    toast('Uploading recording (' + (blob.size / 1048576).toFixed(1) + ' MB)...');
+    const name = 'stage-recording-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.webm';
+    const fd = new FormData();
+    fd.append('file', new File([blob], name, { type: 'video/webm' }));
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!res.ok || !j.url) throw new Error(j.error || 'upload failed');
+      const url = j.url.startsWith('http') ? new URL(j.url).pathname : j.url;
+      doc.recordings.unshift({ url, name, size: blob.size, when: Date.now(), scene: doc.scenes[currentSceneId]?.name || '' });
+      markDirty(); await saveDoc();
+      UI.renderRecordings();
+      toast('Recording saved to server: ' + url);
+    } catch (e) {
+      // last-resort: hand the file to the user so a paid/effortful take is never lost
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      toast('Server upload failed — recording downloaded to your device instead. Error: ' + e.message, true);
+    }
+  }
+};
+
+// ── UI ──────────────────────────────────────────────────────────────────────
+function toast(msg, isErr){
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : ''); t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', isErr ? 7000 : 3500);
+}
+function fmtTime(s){
+  if (!isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return m + ':' + String(ss).padStart(2, '0');
+}
+
+const UI = {
+  currentAudio: null,   // {type:'library'|'generated'|'upload'|'mic', url, title, isVideo, videoAsBg}
+  mediaEl: null,
+
+  // ---- scenes ----
+  renderScenes(){
+    const sel = $('scene-select');
+    sel.innerHTML = '';
+    doc.order.forEach(id => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = doc.scenes[id]?.name || id;
+      if (id === currentSceneId) o.selected = true;
+      sel.appendChild(o);
+    });
+  },
+
+  // ---- stage character list + selection panel ----
+  renderStageChars(){
+    const box = $('stage-chars');
+    box.innerHTML = '';
+    if (!Stage.chars.length) { box.innerHTML = '<div class="note">Nothing on stage yet — add a character below.</div>'; }
+    Stage.sorted().reverse().forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'stage-char-row' + (Stage.selected === c ? ' sel' : '');
+      row.innerHTML = `<span class="grow">${esc(c.name)}</span><span class="pill">${c.mouthLive ? 'live' : 'static'}</span>`;
+      row.onclick = () => Stage.select(c);
+      box.appendChild(row);
+    });
+  },
+  syncSelection(){
+    const c = Stage.selected;
+    $('sel-controls').style.display = c ? '' : 'none';
+    this.renderStageChars();
+    if (!c) return;
+    $('c-scale').value = Math.round(c.scale * 100);
+    $('c-sens').value = Math.round(c.sensitivity * 100);
+    $('c-mood').value = c.mood;
+    $('c-autoemote').checked = c.autoEmote;
+    $('c-eyes').value = c.eyesOverride || '';
+    $('c-mouthshape').value = c.mouthShape || '';
+    $('c-mute').textContent = c.mouthLive ? 'Mouth: live' : 'Mouth: static';
+    const showMouth = !c.mouthLive;
+    $('c-mouthshape').style.display = showMouth ? '' : 'none';
+    $('c-mouthshape-label').style.display = showMouth ? '' : 'none';
+  },
+
+  // ---- saved characters ----
+  async loadSavedChars(){
+    const grid = $('saved-chars'), note = $('saved-chars-note');
+    grid.innerHTML = ''; note.textContent = 'Loading...';
+    let list = [];
+    try {
+      const res = await fetch('/api/bighead/characters');
+      if (res.ok) { const j = await res.json(); list = Array.isArray(j) ? j : (j.characters || []); }
+    } catch (_) {}
+    note.textContent = list.length ? '' : 'No saved characters on this account yet — use the character creator (BigHead Builder) or the quick editor below.';
+    for (const cfg of list) {
+      const card = document.createElement('div');
+      card.className = 'char-card';
+      const cv = document.createElement('canvas');
+      cv.width = 200; cv.height = 200;
+      card.appendChild(cv);
+      const nm = document.createElement('div');
+      nm.className = 'nm'; nm.textContent = cfg.name || 'Unnamed';
+      card.appendChild(nm);
+      card.onclick = () => {
+        AudioEngine.ensure();
+        Stage.addChar(new StageCharacter(cfg, { name: cfg.name }));
+        toast((cfg.name || 'Character') + ' added — drag to position.');
+      };
+      grid.appendChild(card);
+      this.drawThumb(cv, cfg);
+    }
+  },
+  async drawThumb(cv, cfg){
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#0a0f1a'; ctx.fillRect(0, 0, 200, 200);
+    for (const layer of CHAR_LAYERS) {
+      const name = cfg[layer];
+      if (!name || name === 'None') continue;
+      try { const img = await loadImage(imgUrl(layer, name)); ctx.drawImage(img, 0, 0, 200, 200); } catch (_) {}
+    }
+  },
+
+  // ---- quick custom editor ----
+  editorTraits: { ...DEFAULT_TRAITS },
+  buildMiniEditor(){
+    const box = $('mini-editor');
+    box.innerHTML = '';
+    EDITOR_CATS.forEach(cat => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const lab = document.createElement('span');
+      lab.style.cssText = 'flex:0 0 62px;font-size:11px;color:var(--muted)';
+      lab.textContent = cat;
+      const sel = document.createElement('select');
+      TRAITS[cat].forEach(v => { const o = document.createElement('option'); o.textContent = v; sel.appendChild(o); });
+      sel.value = this.editorTraits[cat];
+      sel.onchange = () => this.editorTraits[cat] = sel.value;
+      sel.dataset.cat = cat;
+      row.appendChild(lab); row.appendChild(sel);
+      box.appendChild(row);
+    });
+    const frow = document.createElement('div');
+    frow.className = 'row';
+    frow.innerHTML = '<label style="font-size:12px"><input type="checkbox" id="ed-female"> Female (adds lashes)</label>';
+    box.appendChild(frow);
+    box.querySelector('#ed-female').onchange = (e) => this.editorTraits.female = e.target.checked;
+  },
+  randomizeEditor(){
+    EDITOR_CATS.forEach(cat => {
+      const list = TRAITS[cat];
+      this.editorTraits[cat] = list[Math.floor(Math.random() * list.length)];
+    });
+    document.querySelectorAll('#mini-editor select').forEach(s => s.value = this.editorTraits[s.dataset.cat]);
+  },
+
+  // ---- audio sources ----
+  async loadMusicLists(){
+    for (const [pl, boxId] of [['library','music-list'], ['generated','generated-list']]) {
+      const box = $(boxId);
+      box.innerHTML = '<div class="note">Loading...</div>';
+      try {
+        const res = await fetch('/api/music?action=list&playlist=' + pl);
+        const j = await res.json();
+        const tracks = j.tracks || j.files || [];
+        box.innerHTML = tracks.length ? '' : '<div class="note">No tracks.</div>';
+        tracks.forEach(t => {
+          const fn = t.filename || t.file || t.name;
+          if (!fn) return;
+          const url = (pl === 'generated' ? '/generated_music/' : '/music/') + encodeURIComponent(fn);
+          const item = document.createElement('div');
+          item.className = 'list-item';
+          item.innerHTML = `<span class="grow">${esc(t.title || t.name || fn)}<div class="sub">${esc(t.artist || pl)}</div></span>`;
+          if (pl === 'generated') {
+            const locked = !!doc.stems[fn];
+            const unavailable = !!(doc.stemUnavailable && doc.stemUnavailable[fn]);
+            const b = document.createElement('button');
+            b.className = 'icon-btn';
+            b.textContent = locked ? 'Voice locked' : unavailable ? 'No voice lock (older track)' : 'Lock to voice';
+            b.title = unavailable ? 'This track predates Suno task tracking — voice-band tracking still applies'
+                                  : 'Pull the vocals-only stem from Suno so mouths follow the actual singing';
+            if (locked || unavailable) b.disabled = true;
+            b.onclick = (e) => { e.stopPropagation(); this.lockVocals(fn, b); };
+            item.appendChild(b);
+          }
+          item.onclick = () => this.playUrl(url, t.title || fn, { type: pl, filename: fn });
+          box.appendChild(item);
+        });
+      } catch (_) { box.innerHTML = '<div class="note">Could not load list.</div>'; }
+    }
+    this.loadUploadsList();
+  },
+  async loadUploadsList(){
+    const box = $('uploads-list');
+    box.innerHTML = '';
+    try {
+      const res = await fetch('/api/uploads');
+      const j = await res.json();
+      const files = (j.files || j || []).filter(f => /\.(mp3|wav|ogg|m4a|webm|mp4|mov|aac|flac)$/i.test(f.filename || ''));
+      if (!files.length) { box.innerHTML = '<div class="note">No uploaded audio/video yet.</div>'; return; }
+      files.slice(0, 30).forEach(f => {
+        const isVid = /\.(mp4|mov|webm)$/i.test(f.filename);
+        const item = document.createElement('div');
+        item.className = 'list-item';
+        item.innerHTML = `<span class="grow">${esc(f.filename)}<div class="sub">${isVid ? 'video (sound used)' : 'audio'} · ${(f.size / 1048576).toFixed(1)} MB</div></span>`;
+        item.onclick = () => this.playUrl(f.url, f.filename, { type: 'upload', isVideo: isVid });
+        box.appendChild(item);
+      });
+    } catch (_) { box.innerHTML = '<div class="note">Could not list uploads.</div>'; }
+  },
+
+  discardMediaEl(){
+    this.detachStem();
+    const old = this.mediaEl;
+    if (!old) return;
+    try { old.pause(); } catch(_){}
+    if (Stage.bgVideo === old) Stage.bgVideo = null;
+    old.removeAttribute('src'); old.load?.();
+    if (old.parentNode) old.parentNode.removeChild(old);   // hidden <video> elements
+    this.mediaEl = null;
+  },
+
+  // ---- vocals-only lip-sync (Suno stems) ----
+  stemEl: null,
+  attachStem(vocalUrl){
+    this.detachStem();
+    const s = new Audio(vocalUrl);            // silent: analysis-only, never wired to speakers
+    s.crossOrigin = 'anonymous'; s.preload = 'auto';
+    this.stemEl = s;
+    AudioEngine.setAnalysisElement(s);
+    const main = this.mediaEl;
+    if (main && !main.paused) { s.currentTime = main.currentTime; s.play().catch(() => {}); }
+    if (this.currentAudio) $('now-playing').textContent = (this.currentAudio.title || '') + ' — voice locked';
+  },
+  detachStem(){
+    if (this.stemEl) { try { this.stemEl.pause(); } catch(_){} this.stemEl = null; }
+    if (AudioEngine.analysisEl) AudioEngine.setAnalysisElement(null);
+  },
+  _syncStem(){
+    const m = this.mediaEl, s = this.stemEl;
+    if (!m || !s) return;
+    if (m.paused) { if (!s.paused) s.pause(); return; }
+    if (s.paused) s.play().catch(() => {});
+    if (Math.abs(s.currentTime - m.currentTime) > 0.3) s.currentTime = m.currentTime;
+  },
+  async lockVocals(fn, btn){
+    if (btn) { btn.disabled = true; btn.textContent = 'Separating...'; }
+    try {
+      const r = await fetch('/api/suno', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stem_separate', filename: fn, type: 'separate_vocal' }) });
+      const j = await r.json();
+      if (j.action === 'error' && j.code === 'stem_ids_missing') {
+        // Legacy track — no IDs exist anywhere, don't keep offering the button.
+        if (!doc.stemUnavailable) doc.stemUnavailable = {};
+        doc.stemUnavailable[fn] = true;
+        markDirty(); saveDoc();
+        if (btn) { btn.textContent = 'No voice lock (older track)'; btn.disabled = true; }
+        toast(j.response + ' Mouths still track the voice band of the full mix.', true);
+        return;
+      }
+      if (j.action === 'error') throw new Error(j.response || 'stem_separate failed');
+      const taskId = j.task_id;
+      if (!taskId) throw new Error('no task id returned');
+      toast('Separating vocals — usually ready in under a minute...');
+      for (let i = 0; i < 30; i++) {
+        await new Promise(res => setTimeout(res, 6000));
+        const pr = await fetch('/api/suno', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'stem_result', task_id: taskId, filename: fn }) });
+        const pj = await pr.json();
+        if (pj.action === 'complete' && pj.vocal_url) {
+          doc.stems[fn] = pj.vocal_url;
+          markDirty(); await saveDoc();
+          if (this.currentAudio && this.currentAudio.filename === fn) this.attachStem(pj.vocal_url);
+          if (btn) btn.textContent = 'Voice locked';
+          toast('Vocals isolated — mouths now follow the actual singing.');
+          return;
+        }
+        if (pj.action === 'error') throw new Error(pj.response || 'stem_result failed');
+      }
+      throw new Error('timed out — hit the button again in a minute, the stems may still be processing');
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Lock to voice'; }
+      toast('Vocal isolation failed: ' + e.message, true);
+    }
+  },
+
+  playUrl(url, title, meta = {}){
+    AudioEngine.ensure();
+    AudioEngine.stopMic();
+    $('btn-mic').textContent = 'Use microphone';
+    // fresh element per source (a MediaElementSource is forever bound to its element)
+    this.discardMediaEl();
+    const el = meta.isVideo ? document.createElement('video') : new Audio();
+    el.crossOrigin = 'anonymous';
+    el.src = url;
+    el.preload = 'auto';
+    if (meta.isVideo) { el.playsInline = true; el.style.display = 'none'; document.body.appendChild(el); }
+    this.mediaEl = el;
+    AudioEngine.useElement(el);
+    this.currentAudio = { type: meta.type || 'upload', url, title, filename: meta.filename || '', isVideo: !!meta.isVideo, videoAsBg: !!meta.videoAsBg };
+    $('now-playing').textContent = title;
+    if (meta.filename && doc.stems[meta.filename]) this.attachStem(doc.stems[meta.filename]);   // one-time stem, reused forever
+    $('video-as-bg-row').style.display = meta.isVideo ? '' : 'none';
+    $('video-as-bg').checked = !!meta.videoAsBg;
+    if (meta.isVideo && meta.videoAsBg) this.applyVideoAsBg(true);
+    this.wireTransport(el);
+    el.play().then(() => { $('btn-play').textContent = 'Pause'; }).catch(() => toast('Press Play to start (browser needs a click first).'));
+    markDirty();
+  },
+  applyVideoAsBg(on){
+    if (!this.currentAudio || !this.currentAudio.isVideo || !this.mediaEl) return;
+    this.currentAudio.videoAsBg = on;
+    if (on) {
+      Stage.bg = { ...Stage.bg, type: 'video' };
+      Stage.bgVideo = this.mediaEl;           // same element: sound + picture stay in sync
+      $('bg-type').value = 'video';
+      this.syncBgControls();
+    } else if (Stage.bgVideo === this.mediaEl) {
+      Stage.bgVideo = null;
+      Stage.bg = { ...Stage.bg, type: 'color' };
+      $('bg-type').value = 'color';
+      this.syncBgControls();
+    }
+    markDirty();
+  },
+  restoreAudio(a){
+    // restore source WITHOUT autoplay (browsers block it); user presses play.
+    if (!a || !a.url || a.type === 'mic') return;
+    this.currentAudio = { ...a };
+    $('now-playing').textContent = (a.title || a.url) + ' — press Play';
+    this.discardMediaEl();
+    const el = a.isVideo ? document.createElement('video') : new Audio();
+    el.crossOrigin = 'anonymous'; el.src = a.url; el.preload = 'auto';
+    if (a.isVideo) { el.playsInline = true; el.style.display = 'none'; document.body.appendChild(el); }
+    this.mediaEl = el;
+    this.wireTransport(el);
+    $('video-as-bg-row').style.display = a.isVideo ? '' : 'none';
+    $('video-as-bg').checked = !!a.videoAsBg;
+    if (a.isVideo && a.videoAsBg) { Stage.bgVideo = el; }
+    $('btn-play').disabled = false;
+  },
+  wireTransport(el){
+    $('btn-play').disabled = false;
+    $('seek').disabled = false;
+    el.loop = this._loop || false;
+    el.addEventListener('loadedmetadata', () => $('time-dur').textContent = fmtTime(el.duration));
+    el.addEventListener('timeupdate', () => {
+      $('time-cur').textContent = fmtTime(el.currentTime);
+      if (isFinite(el.duration) && el.duration > 0 && !this._seeking) $('seek').value = Math.round(el.currentTime / el.duration * 1000);
+      this._syncStem();
+    });
+    el.addEventListener('seeked', () => { if (this.stemEl) this.stemEl.currentTime = el.currentTime; });
+    el.addEventListener('ended', () => { $('btn-play').textContent = 'Play'; if (this.stemEl) this.stemEl.pause(); });
+    el.addEventListener('play', () => { AudioEngine.ensure(); AudioEngine.useElement(el); $('btn-play').textContent = 'Pause'; this._syncStem(); });
+    el.addEventListener('pause', () => { $('btn-play').textContent = 'Play'; this._syncStem(); });
+  },
+
+  // ---- background controls ----
+  syncBgControls(){
+    const t = Stage.bg.type;
+    $('bg-type').value = t;
+    $('bg-color-ctl').style.display = t === 'color' ? '' : 'none';
+    $('bg-image-ctl').style.display = t === 'image' ? '' : 'none';
+    $('bg-video-ctl').style.display = t === 'video' ? '' : 'none';
+    $('bg-embed-ctl').style.display = t === 'embed' ? '' : 'none';
+    $('bg-color').value = Stage.bg.color || '#0a0f1a';
+    $('bg-fit').value = Stage.bg.fit || 'cover';
+    if (t === 'image') $('bg-image-url').value = Stage.bg.url || '';
+    if (t === 'video') $('bg-video-url').value = Stage.bg.url || '';
+    if (t === 'embed') $('bg-embed-url').value = Stage.bg.url || '';
+  },
+  // ---- background gallery: uploads + BigHead CDN scenes + BHB artwork ----
+  _bgGalLoaded: false,
+  _bgCard(url, label, isVideo){
+    const card = document.createElement('div');
+    card.className = 'char-card';
+    const thumb = isVideo
+      ? `<video src="${esc(url)}" preload="metadata" muted playsinline style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;pointer-events:none"></video>`
+      : `<img src="${esc(url)}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px" loading="lazy" onerror="this.parentElement.style.display='none'">`;
+    card.innerHTML = `${thumb}<div class="nm">${isVideo ? '[video] ' : ''}${esc(label)}</div>`;
+    card.onclick = () => {
+      if (isVideo) {
+        $('bg-type').value = 'video';
+        Stage.setBackground({ type: 'video', url, mute: true });
+      } else {
+        $('bg-type').value = 'image';
+        $('bg-image-url').value = url;
+        Stage.setBackground({ type: 'image', url });
+      }
+      this.syncBgControls();
+      toast('Background: ' + label);
+    };
+    return card;
+  },
+  async loadBgGallery(force){
+    if (this._bgGalLoaded && !force) return;
+    this._bgGalLoaded = true;
+    // 1. Everything ever uploaded — images AND videos
+    const up = $('bg-gal-uploads');
+    up.innerHTML = '';
+    try {
+      const res = await fetch('/api/uploads');
+      const j = await res.json();
+      const files = (j.files || []).filter(f => /\.(png|jpe?g|gif|webp|mp4|mov|webm)$/i.test(f.filename || ''));
+      if (!files.length) up.innerHTML = '<div class="note">Nothing uploaded yet.</div>';
+      files.forEach(f => up.appendChild(this._bgCard(f.url, f.filename, /\.(mp4|mov|webm)$/i.test(f.filename))));
+    } catch (_) { up.innerHTML = '<div class="note">Could not list uploads.</div>'; }
+    // 2. BigHead CharacterCooker scene backgrounds (CDN)
+    const RAW_BG = 'https://raw.githubusercontent.com/BHALEYART/BigHeadCharacterCooker/main/BACKGROUNDS/';
+    const SCENES = ['Aquatic','Bleach','Burst','Crimson','Cursed','Eggshell','Enlightened','Envious',
+      'Graphite','Haunted','Kuwai','Lavish','Mania','Money','Natural','Navy','Passionate','Regal',
+      'Sky','Slate','Snowflake','SolFlare','Sunflower','Tangerine','Velvet','Vibes'];
+    const sc = $('bg-gal-scenes');
+    sc.innerHTML = '';
+    SCENES.forEach(n => sc.appendChild(this._bgCard(RAW_BG + encodeURIComponent(n) + '.png', n, false)));
+    // 3. BHB artwork set
+    const RAW_ART = 'https://raw.githubusercontent.com/BHALEYART/BigHeadBillionaires/main/assets/';
+    const ART = [['animator','Animator'],['bhaley-bighead','B Haley BigHead'],['burn','Burn Effect'],
+      ['customizer','Character Customizer'],['episodes-preview','Episodes Preview'],['fitzy-bighead','Fitzy BigHead'],
+      ['game','Game'],['home','Home Page'],['market-preview','Marketplace Preview'],
+      ['metamike-bighead','Metamike BigHead'],['mint','NFT Mint']];
+    const ar = $('bg-gal-art');
+    ar.innerHTML = '';
+    ART.forEach(([n, label]) => ar.appendChild(this._bgCard(RAW_ART + n + '.png', label, false)));
+  },
+
+  // ---- recordings ----
+  renderRecordings(){
+    const box = $('rec-list');
+    box.innerHTML = (doc.recordings || []).length ? '' : '<div class="note">No recordings yet.</div>';
+    (doc.recordings || []).forEach((r, idx) => {
+      const d = document.createElement('div');
+      d.className = 'rec-item';
+      d.innerHTML = `<div class="row"><span class="grow" style="font-size:12px">${esc(r.name)}<div class="sub" style="font-size:10px;color:var(--muted)">${new Date(r.when).toLocaleString()} · ${(r.size / 1048576).toFixed(1)} MB${r.scene ? ' · ' + esc(r.scene) : ''}</div></span>
+        <a href="${esc(r.url)}?download=1" download style="font-size:11px;color:var(--accent)" class="fix">Download</a></div>
+        <video src="${esc(r.url)}" controls preload="none"></video>`;
+      const row = d.querySelector('.row');
+      const del = document.createElement('button');
+      del.className = 'icon-btn danger fix';
+      del.textContent = 'Delete';
+      del.onclick = async () => {
+        if (!confirm('Remove "' + r.name + '" from your recordings?')) return;
+        doc.recordings.splice(idx, 1);
+        markDirty(); await saveDoc();
+        this.renderRecordings();
+      };
+      row.appendChild(del);
+      box.appendChild(d);
+    });
+  }
+};
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// ── Pointer interaction on the stage (drag / resize) ───────────────────────
+(function wirePointer(){
+  let mode = null, startC = null, start = null;
+  function toStage(e){
+    const r = overlayC.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * Stage.W, y: (e.clientY - r.top) / r.height * Stage.H };
+  }
+  overlayC.style.pointerEvents = 'auto';
+  overlayC.style.touchAction = 'none';
+  overlayC.addEventListener('pointerdown', (e) => {
+    const p = toStage(e);
+    const sel = Stage.selected;
+    if (sel) {
+      const r = sel.rect(Stage.W, Stage.H);
+      const hs = 30;
+      if (Math.abs(p.x - (r.x + r.w)) < hs && Math.abs(p.y - (r.y + r.h)) < hs) {
+        mode = 'resize'; startC = sel; start = { p, scale: sel.scale, cx: sel.x * Stage.W, cy: sel.y * Stage.H };
+        overlayC.setPointerCapture(e.pointerId);
+        return;
+      }
+    }
+    const hit = Stage.hitTest(p.x, p.y);
+    Stage.select(hit);
+    if (hit) {
+      mode = 'drag'; startC = hit; start = { p, x: hit.x, y: hit.y };
+      overlayC.setPointerCapture(e.pointerId);
+    }
+  });
+  overlayC.addEventListener('pointermove', (e) => {
+    if (!mode || !startC) return;
+    const p = toStage(e);
+    if (mode === 'drag') {
+      startC.x = start.x + (p.x - start.p.x) / Stage.W;
+      startC.y = start.y + (p.y - start.p.y) / Stage.H;
+    } else if (mode === 'resize') {
+      const d0 = Math.hypot(start.p.x - start.cx, start.p.y - start.cy);
+      const d1 = Math.hypot(p.x - start.cx, p.y - start.cy);
+      startC.scale = Math.max(0.08, Math.min(2.5, start.scale * (d1 / Math.max(1, d0))));
+      UI.syncSelection();
+    }
+  });
+  const end = () => { if (mode) { mode = null; startC = null; markDirty(); } };
+  overlayC.addEventListener('pointerup', end);
+  overlayC.addEventListener('pointercancel', end);
+  overlayC.addEventListener('wheel', (e) => {
+    if (!Stage.selected) return;
+    e.preventDefault();
+    Stage.selected.scale = Math.max(0.08, Math.min(2.5, Stage.selected.scale * (e.deltaY < 0 ? 1.06 : 0.94)));
+    UI.syncSelection(); markDirty();
+  }, { passive: false });
+  window.addEventListener('keydown', (e) => {
+    const c = Stage.selected;
+    if (!c || /input|select|textarea/i.test(document.activeElement?.tagName || '')) return;
+    const step = e.shiftKey ? 0.05 : 0.01;
+    if (e.key === 'ArrowLeft') { c.x -= step; markDirty(); }
+    else if (e.key === 'ArrowRight') { c.x += step; markDirty(); }
+    else if (e.key === 'ArrowUp') { c.y -= step; markDirty(); }
+    else if (e.key === 'ArrowDown') { c.y += step; markDirty(); }
+    else if (e.key === 'Delete' || e.key === 'Backspace') { Stage.removeChar(c); }
+    else return;
+    e.preventDefault();
+  });
+})();
+
+// ── Wire controls ───────────────────────────────────────────────────────────
+function wire(){
+  // tabs
+  document.querySelectorAll('.side-tabs button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.side-tabs button').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+    $('tab-' + b.dataset.tab).style.display = '';
+    if (b.dataset.tab === 'audio') UI.loadMusicLists();
+    if (b.dataset.tab === 'bg') UI.loadBgGallery();
+    if (b.dataset.tab === 'rec') UI.renderRecordings();
+  });
+  $('bg-gal-refresh').onclick = (e) => { e.preventDefault(); UI.loadBgGallery(true); };
+  $('btn-side-toggle').onclick = () => $('side').classList.toggle('hidden');
+
+  // scenes
+  $('scene-select').onchange = (e) => { captureScene(); openScene(e.target.value); markDirty(); };
+  $('btn-scene-new').onclick = () => {
+    captureScene();
+    const name = prompt('Scene name:', 'Scene ' + (doc.order.length + 1));
+    if (name === null) return;
+    const id = 's' + Date.now();
+    doc.scenes[id] = { id, name: name || ('Scene ' + (doc.order.length + 1)), aspect: Stage.aspect, bg: { type: 'color', color: '#0a0f1a', fit: 'cover' }, characters: [], audio: null, ampMode: AudioEngine.mode };
+    doc.order.push(id);
+    openScene(id); markDirty();
+  };
+  $('btn-scene-rename').onclick = () => {
+    const s = doc.scenes[currentSceneId]; if (!s) return;
+    const name = prompt('Rename scene:', s.name);
+    if (name) { s.name = name; UI.renderScenes(); markDirty(); }
+  };
+  $('btn-scene-del').onclick = () => {
+    if (doc.order.length <= 1) { toast('Keep at least one scene.', true); return; }
+    const s = doc.scenes[currentSceneId];
+    if (!confirm('Delete scene "' + (s?.name || '') + '"? (Recordings are kept.)')) return;
+    delete doc.scenes[currentSceneId];
+    doc.order = doc.order.filter(i => i !== currentSceneId);
+    openScene(doc.order[0]); markDirty();
+  };
+
+  $('aspect').onchange = (e) => { Stage.setAspect(e.target.value); markDirty(); };
+
+  // transport
+  $('btn-play').onclick = () => {
+    const el = UI.mediaEl; if (!el) return;
+    AudioEngine.ensure();
+    if (el.paused) { AudioEngine.useElement(el); el.play(); } else el.pause();
+  };
+  $('seek').addEventListener('input', () => UI._seeking = true);
+  $('seek').addEventListener('change', () => {
+    const el = UI.mediaEl;
+    if (el && isFinite(el.duration)) el.currentTime = $('seek').value / 1000 * el.duration;
+    UI._seeking = false;
+  });
+  $('btn-loop').onclick = () => {
+    UI._loop = !UI._loop;
+    if (UI.mediaEl) UI.mediaEl.loop = UI._loop;
+    $('btn-loop').textContent = 'Loop: ' + (UI._loop ? 'on' : 'off');
+  };
+
+  // audio tab
+  const drop = $('audio-drop'), fileIn = $('audio-file');
+  drop.onclick = () => fileIn.click();
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); if (e.dataTransfer.files[0]) uploadMedia(e.dataTransfer.files[0]); };
+  fileIn.onchange = () => { if (fileIn.files[0]) uploadMedia(fileIn.files[0]); fileIn.value = ''; };
+  $('video-as-bg').onchange = (e) => UI.applyVideoAsBg(e.target.checked);
+  $('amp-mode').onchange = (e) => { AudioEngine.mode = e.target.value; markDirty(); };
+  $('btn-mic').onclick = async () => {
+    if (AudioEngine.micStream) {
+      AudioEngine.stopMic();
+      $('btn-mic').textContent = 'Use microphone';
+      $('now-playing').textContent = 'No audio selected';
+      UI.currentAudio = null;
+      return;
+    }
+    try {
+      await AudioEngine.useMic();
+      $('btn-mic').textContent = 'Stop microphone';
+      $('now-playing').textContent = 'Microphone (live)';
+      UI.currentAudio = { type: 'mic' };
+      toast('Mic live — the mouths follow your voice. Speakers are muted to avoid feedback; recordings include the mic.');
+    } catch (e) { toast('Microphone unavailable: ' + e.message, true); }
+  };
+
+  // characters tab
+  $('btn-chars-reload').onclick = () => UI.loadSavedChars();
+  $('btn-random').onclick = () => UI.randomizeEditor();
+  $('btn-add-custom').onclick = () => {
+    AudioEngine.ensure();
+    const t = { ...UI.editorTraits };
+    Stage.addChar(new StageCharacter(t, { name: t.HEAD !== 'None' ? t.HEAD : t.BODY }));
+  };
+  $('c-scale').oninput = (e) => { if (Stage.selected) { Stage.selected.scale = e.target.value / 100; markDirty(); } };
+  $('c-sens').oninput = (e) => { if (Stage.selected) { Stage.selected.sensitivity = e.target.value / 100; markDirty(); } };
+  $('c-mood').onchange = (e) => { if (Stage.selected) { Stage.selected.mood = e.target.value; Stage.selected.autoEmote = false; $('c-autoemote').checked = false; markDirty(); } };
+  $('c-autoemote').onchange = (e) => { if (Stage.selected) { Stage.selected.autoEmote = e.target.checked; markDirty(); } };
+  $('c-eyes').onchange = (e) => {
+    const c = Stage.selected; if (!c) return;
+    c.eyesOverride = e.target.value;
+    if (c.eyesOverride) loadImage(imgUrl('EYES', c.eyesOverride)).catch(() => {});
+    markDirty();
+  };
+  $('c-mouthshape').onchange = (e) => {
+    const c = Stage.selected; if (!c) return;
+    c.mouthShape = e.target.value;
+    if (c.mouthShape) loadImage(imgUrl('MOUTH', c.mouthShape)).catch(() => {});
+    markDirty();
+  };
+  $('c-flip').onclick = () => { const c = Stage.selected; if (c) { c.flip = !c.flip; markDirty(); } };
+  $('c-front').onclick = () => { const c = Stage.selected; if (c) { c.z = Math.max(...Stage.chars.map(x => x.z)) + 1; UI.renderStageChars(); markDirty(); } };
+  $('c-back').onclick = () => { const c = Stage.selected; if (c) { c.z = Math.min(...Stage.chars.map(x => x.z)) - 1; UI.renderStageChars(); markDirty(); } };
+  $('c-mute').onclick = () => { const c = Stage.selected; if (c) { c.mouthLive = !c.mouthLive; UI.syncSelection(); markDirty(); } };
+  $('c-dup').onclick = () => {
+    const c = Stage.selected; if (!c) return;
+    const d = StageCharacter.deserialize({ ...c.serialize(), uid: undefined, x: Math.min(0.95, c.x + 0.08) });
+    Stage.addChar(d);
+  };
+  $('c-remove').onclick = () => { if (Stage.selected) Stage.removeChar(Stage.selected); };
+
+  // background tab
+  $('bg-type').onchange = (e) => { Stage.setBackground({ type: e.target.value }); UI.syncBgControls(); };
+  $('bg-color').oninput = (e) => Stage.setBackground({ type: 'color', color: e.target.value });
+  $('bg-fit').onchange = (e) => Stage.setBackground({ fit: e.target.value });
+  $('bg-image-apply').onclick = () => Stage.setBackground({ type: 'image', url: $('bg-image-url').value.trim() });
+  $('bg-video-apply').onclick = () => Stage.setBackground({ type: 'video', url: $('bg-video-url').value.trim(), mute: $('bg-video-mute').checked });
+  $('bg-video-mute').onchange = (e) => { Stage.bg.mute = e.target.checked; if (Stage.bgVideo) Stage.bgVideo.muted = e.target.checked; markDirty(); };
+  $('bg-embed-apply').onclick = () => Stage.setBackground({ type: 'embed', url: $('bg-embed-url').value.trim() });
+  const bgMediaDrop = $('bg-media-drop'), bgMediaFile = $('bg-media-file');
+  bgMediaDrop.onclick = () => bgMediaFile.click();
+  bgMediaDrop.ondragover = (e) => { e.preventDefault(); bgMediaDrop.classList.add('over'); };
+  bgMediaDrop.ondragleave = () => bgMediaDrop.classList.remove('over');
+  bgMediaDrop.ondrop = (e) => { e.preventDefault(); bgMediaDrop.classList.remove('over'); if (e.dataTransfer.files[0]) uploadBgMedia(e.dataTransfer.files[0]); };
+  bgMediaFile.onchange = () => { if (bgMediaFile.files[0]) uploadBgMedia(bgMediaFile.files[0]); bgMediaFile.value = ''; };
+  const bgDrop = $('bg-drop'), bgFile = $('bg-file');
+  bgDrop.onclick = () => bgFile.click();
+  bgDrop.ondragover = (e) => { e.preventDefault(); bgDrop.classList.add('over'); };
+  bgDrop.ondragleave = () => bgDrop.classList.remove('over');
+  bgDrop.ondrop = (e) => { e.preventDefault(); bgDrop.classList.remove('over'); if (e.dataTransfer.files[0]) uploadBg(e.dataTransfer.files[0]); };
+  bgFile.onchange = () => { if (bgFile.files[0]) uploadBg(bgFile.files[0]); bgFile.value = ''; };
+
+  // record + perform
+  $('btn-record').onclick = () => Recorder.active ? Recorder.stop() : Recorder.start();
+  $('btn-record2').onclick = () => Recorder.active ? Recorder.stop() : Recorder.start();
+  $('btn-perform').onclick = () => {
+    document.body.classList.add('perform');
+    Stage.select(null);
+    Stage.fit();
+    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  };
+  $('btn-exit-perform').onclick = exitPerform;
+  document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) exitPerform(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') exitPerform(); });
+  let cursorT;
+  document.addEventListener('mousemove', () => {
+    if (!document.body.classList.contains('perform')) return;
+    document.body.classList.add('show-cursor');
+    clearTimeout(cursorT);
+    cursorT = setTimeout(() => document.body.classList.remove('show-cursor'), 1500);
+  });
+
+  window.addEventListener('resize', () => Stage.fit());
+  window.addEventListener('beforeunload', () => { if (dirty) { captureScene(); navigator.sendBeacon && navigator.sendBeacon('/api/canvas/data/' + DATA_FILE, new Blob([JSON.stringify(doc)], { type: 'application/json' })); } });
+}
+function exitPerform(){
+  document.body.classList.remove('perform');
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  Stage.fit();
+}
+
+async function uploadMedia(file){
+  if (file.size > 100 * 1048576) { toast('File is over the 100 MB upload limit.', true); return; }
+  toast('Uploading ' + file.name + '...');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok || !j.url) throw new Error(j.error || 'upload failed');
+    const url = j.url.startsWith('http') ? new URL(j.url).pathname : j.url;
+    const isVideo = /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name) || file.type.startsWith('video/');
+    toast('Uploaded. Playing...');
+    UI.playUrl(url, file.name, { type: 'upload', isVideo });
+    UI.loadUploadsList();
+  } catch (e) { toast('Upload failed: ' + e.message, true); }
+}
+async function uploadBgMedia(file){
+  if (file.size > 100 * 1048576) { toast('File is over the 100 MB upload limit.', true); return; }
+  const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
+  toast('Uploading background ' + (isVideo ? 'video' : 'image') + '...');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok || !j.url) throw new Error(j.error || 'upload failed');
+    const url = j.url.startsWith('http') ? new URL(j.url).pathname : j.url;
+    if (isVideo) {
+      $('bg-type').value = 'video';
+      Stage.setBackground({ type: 'video', url, mute: true });
+    } else {
+      $('bg-type').value = 'image';
+      Stage.setBackground({ type: 'image', url });
+    }
+    UI.syncBgControls();
+    toast('Background set.');
+  } catch (e) { toast('Upload failed: ' + e.message, true); }
+}
+
+async function uploadBg(file){
+  toast('Uploading background...');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const j = await res.json();
+    if (!res.ok || !j.url) throw new Error(j.error || 'upload failed');
+    const url = j.url.startsWith('http') ? new URL(j.url).pathname : j.url;
+    $('bg-image-url').value = url;
+    Stage.setBackground({ type: 'image', url });
+    UI.loadBgGallery(true);
+    toast('Background set.');
+  } catch (e) { toast('Upload failed: ' + e.message, true); }
+}
+
+// ── Boot ────────────────────────────────────────────────────────────────────
+(async function boot(){
+  UI.buildMiniEditor();
+  // populate the per-character eyes / mouth-shape pickers
+  const eyesSel = $('c-eyes');
+  eyesSel.appendChild(new Option('Expressive (moods / auto emotions)', ''));
+  TRAITS.EYES.forEach(v => eyesSel.appendChild(new Option(v, v)));
+  const mouthSel = $('c-mouthshape');
+  mouthSel.appendChild(new Option('Character\'s own mouth', ''));
+  TRAITS.MOUTH.forEach(v => mouthSel.appendChild(new Option(v, v)));
+  wire();
+  await loadDoc();
+  Stage.setAspect('16:9');
+  openScene(doc.lastScene && doc.scenes[doc.lastScene] ? doc.lastScene : doc.order[0]);
+  Stage.fit();
+  requestAnimationFrame((t) => Stage.render(t));
+  UI.loadSavedChars();
+  UI.renderRecordings();
+  // resume audio context on first interaction anywhere (browser autoplay policy)
+  const kick = () => { AudioEngine.ensure(); document.removeEventListener('pointerdown', kick); };
+  document.addEventListener('pointerdown', kick);
+})();
+</script>
+</body>
+</html>
