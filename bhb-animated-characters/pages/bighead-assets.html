@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BigHead Assets</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:#0a0a0f;
+  color:#e2e8f0;
+  font-family:'Inter',system-ui,sans-serif;
+  padding:24px;
+  min-height:100vh;
+}
+
+.header{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:28px;
+  padding-bottom:20px;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+
+.header-box{
+  width:48px;
+  height:48px;
+  background:#111;
+  border:1px solid #333;
+  border-radius:8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:700;
+  color:#4ade80;
+  text-transform:uppercase;
+  letter-spacing:-1px;
+}
+
+.header-text h1{
+  font-size:22px;
+  font-weight:700;
+  color:#fff;
+  letter-spacing:-0.5px;
+}
+
+.header-text p{
+  font-size:12px;
+  color:#666;
+  margin-top:2px;
+}
+
+.tabs{
+  display:flex;
+  gap:6px;
+  margin-bottom:24px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+  padding-bottom:0;
+}
+
+.tab{
+  padding:10px 18px;
+  border:none;
+  background:transparent;
+  color:#666;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.15s;
+  border-bottom:2px solid transparent;
+  margin-bottom:-1px;
+  font-family:inherit;
+}
+
+.tab:hover{
+  color:#999;
+}
+
+.tab.active{
+  color:#4ade80;
+  border-bottom-color:#4ade80;
+}
+
+.count-tag{
+  background:rgba(74,222,128,0.15);
+  color:#4ade80;
+  font-size:10px;
+  font-weight:600;
+  padding:1px 6px;
+  border-radius:10px;
+  margin-left:4px;
+}
+
+.section{
+  margin-bottom:32px;
+}
+
+.section-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:14px;
+}
+
+.section-title{
+  font-size:11px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:#555;
+}
+
+.section-line{
+  flex:1;
+  height:1px;
+  background:rgba(255,255,255,0.06);
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:12px;
+}
+
+.card{
+  background:#111;
+  border:1px solid #1e1e1e;
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+
+.card:hover{
+  border-color:#333;
+  transform:translateY(-2px);
+}
+
+.card-img{
+  width:100%;
+  aspect-ratio:16/10;
+  object-fit:cover;
+  display:block;
+  background:#0d0d0d;
+}
+
+/* transparent 1:1 character-layer PNGs — contain, never crop */
+.piece-img{
+  aspect-ratio:1;
+  object-fit:contain;
+  background:
+    linear-gradient(45deg,#14141c 25%,transparent 25%,transparent 75%,#14141c 75%),
+    linear-gradient(45deg,#14141c 25%,#0d0d12 25%,#0d0d12 75%,#14141c 75%);
+  background-size:20px 20px;
+  background-position:0 0,10px 10px;
+}
+
+.card-label{
+  padding:8px 10px;
+  font-size:12px;
+  color:#888;
+  font-weight:500;
+}
+
+.preview-overlay{
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.92);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 0.2s;
+}
+
+.preview-overlay.show{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.preview-inner{
+  max-width:90vw;
+  max-height:90vh;
+  text-align:center;
+}
+
+.preview-img{
+  max-width:100%;
+  max-height:75vh;
+  border-radius:8px;
+  border:1px solid #222;
+}
+
+.preview-name{
+  margin-top:12px;
+  font-size:14px;
+  color:#666;
+  font-weight:500;
+}
+
+.preview-close{
+  position:absolute;
+  top:20px;
+  right:20px;
+  width:36px;
+  height:36px;
+  border-radius:50%;
+  border:1px solid #333;
+  background:#111;
+  color:#666;
+  cursor:pointer;
+  font-size:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:all 0.15s;
+}
+
+.preview-close:hover{
+  border-color:#555;
+  color:#fff;
+}
+
+.empty{
+  grid-column:1/-1;
+  text-align:center;
+  padding:60px 20px;
+  color:#333;
+  font-size:13px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-box">BH</div>
+  <div class="header-text">
+    <h1>BigHead Assets</h1>
+    <p>Character pieces, backgrounds, scenes, and artwork from the BHB GitHub repos</p>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-filter="all">All<span class="count-tag" id="count-all">0</span></button>
+  <button class="tab" data-filter="pieces">Character pieces<span class="count-tag" id="count-pieces">0</span></button>
+  <button class="tab" data-filter="bg">Backgrounds<span class="count-tag" id="count-bg">0</span></button>
+  <button class="tab" data-filter="scene">Scenes<span class="count-tag" id="count-scene">0</span></button>
+  <button class="tab" data-filter="art">Artwork<span class="count-tag" id="count-art">0</span></button>
+</div>
+
+<div class="section" id="sec-pieces"></div>
+
+<div class="section" id="sec-bg">
+  <div class="section-header">
+    <div class="section-title">Backgrounds</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid" id="grid-bg"></div>
+</div>
+
+<div class="section" id="sec-scene">
+  <div class="section-header">
+    <div class="section-title">Scenes</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid" id="grid-scene"></div>
+</div>
+
+<div class="section" id="sec-art">
+  <div class="section-header">
+    <div class="section-title">Artwork</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="grid" id="grid-art"></div>
+</div>
+
+<div class="preview-overlay" id="preview">
+  <button class="preview-close" onclick="closePreview()">X</button>
+  <div class="preview-inner">
+    <img class="preview-img" id="preview-img" src="" alt="">
+    <div class="preview-name" id="preview-name"></div>
+  </div>
+</div>
+
+<script>
+const backgrounds = [
+  "Aquatic","Bleach","Burst","Crimson","Cursed","Eggshell","Enlightened",
+  "Envious","Graphite","Haunted","Kuwai","Lavish","Mania","Money","Natural",
+  "Navy","Passionate","Regal","Sky","Slate","Snowflake","SolFlare","Sunflower",
+  "Tangerine","Velvet","Vibes"
+];
+
+const artwork = [
+  {name:"animator", label:"Animator"},
+  {name:"bhaley-bighead", label:"B Haley BigHead"},
+  {name:"burn", label:"Burn Effect"},
+  {name:"customizer", label:"Character Customizer"},
+  {name:"episodes-preview", label:"Episodes Preview"},
+  {name:"fitzy-bighead", label:"Fitzy BigHead"},
+  {name:"game", label:"Game"},
+  {name:"home", label:"Home Page"},
+  {name:"market-preview", label:"Marketplace Preview"},
+  {name:"metamike-bighead", label:"Metamike BigHead"},
+  {name:"mint", label:"NFT Mint"}
+];
+
+const baseBg = "https://raw.githubusercontent.com/BHALEYART/BigHeadCharacterCooker/main/BACKGROUNDS/";
+const baseArt = "https://raw.githubusercontent.com/BHALEYART/BigHeadBillionaires/main/assets/";
+const baseScene = "https://raw.githubusercontent.com/BHALEYART/BigHeadCharacterCooker/main/SCENES/";
+const CDN = "https://bhaleyart.github.io/BigHeadCharacterCooker";
+
+// Character layer pieces — same catalogs as the builder + Character Stage.
+// "+MXP"/"+EXP" tags are part of the FILENAME (needed in URLs); labels strip them.
+const PIECES = {
+  BODY: ['Blank','Charcoal','High Voltage','Nebulous','Pinky','Shockwave','Tangerine','Turquoise','Woody','Frogger','Area 51','Dark Tone','Mid Tone','Light Tone','Jolly Roger','Cyber Punk','Talking Corpse','Day Tripper','Meat Lover','Golden God','Chrome Dome','Candy Gloss','Man On Fire','Water Boy','Icecream Man','Reptilian','Juiced Up','Toxic Waste','Love Potion','Pop Artist','Autopsy','Ghostly','Blue Screen','Networker','IceMan','Primal','TheLizard','PanduBeru','Calico+MXP','Cheesed+MXP','Infernal+MXP','Prismatic+MXP'],
+  HEAD: ['Antenna','Bandana Bro','Beanie','Blonde Beanie','Blonde Bun','Blue Bedhead','Brain Squid','Bravo','Brunette Beanie','Brunette Ponytail','Burger Crown','Captain Hat','Cat Hat','Chad Bandana','Cherry Sundae','Clown Wig','Fancy Hat','Fireman','Flame Princess','Fossilized','Gamer Girl','Ginger Ponytail','Heated','Horny Horns','Hunted','Jester','Kingly','Mad Hatter','Masked Up','Mohawk Blue','Mohawk Green','Mohawk Red','Mortricia','Outlaw','Overload','Patrol Cap','Pharaoh Hat','Pink Pigtails','Powdered Wig','Press Pass','Propeller','Rainbow Babe','Recon Helmet','Robin Hood','Santa Hat','Sewer Slime','Snapback Blue','Snapback Hippy','Snapback Red','Snapback Yellow','Sombrero','Spiritual','Surgeon','UwU Kitty','Valhalla Cap','Way Dizzy','FoxFamous','Inferno','Kpop','Mullet','Party-Animal','Raven','Unplugged','Yagami','Afro+MXP','Cruela+MXP','Keanu+MXP','Medusa+MXP','Rural+MXP','Shinto+MXP','Sideshow+MXP','SnowBeanie+MXP','Thursday+MXP','Wendy+MXP','Eggcellent+EXP','Kakarot+EXP','Martian+EXP','Pirated+EXP','Spartan+EXP','Straw Hat+EXP'],
+  EYES: ['Curious','Alien','Annoyed','Demonic','Diamond','Dots','Grumpy','Hypnotized','Infuriated','Insect','Joy','Light Bright','Monocle','Ouchy','Paranoid','Possessed','Ruby Stare','Spider','Stare','Stoney Eyes','Sunglasses','Surprised','Tears','Deceased','Too Chill','VR Headset','3D Glasses','Stern'],
+  MOUTH: ['Mmm','Simpleton','Stache','Creeper','Pierced','Fangs','Gold Teeth','Diamond Teeth','Birdy','Panic','Sss','Ahh','Ehh','Uhh','LLL','Rrr','Fff','Ooo','Thh','Eee','Haha','Rofl','Bean Frown','Bean Smile','Smirk','Bored','Gas Mask','Scuba','CandyGrill','Quacked','Mutant+MXP'],
+  OUTFIT: ['Blue Tee','Blueberry Dye','Degen Green','Degen Purple','Earthy Dye','Hodl Black','Hodl White','Locked Up','Moto-X','Orange Zip','Passion Dye','Pink Zip','Raider Ref','Red Tee','Smally Bigs','Yellow Tee','Blue Zip','Red Zip','White Zip','Hornet Zip','Ghostly Zip','Gold Jacket','Tuxedo','Thrashed','The Fuzz','Pin Striped','Designer Zip','Luxury Zip','Explorer','Power Armor','Shinobi','Thrilled','Trenches','Ski Jacket','Sled Jacket','Commando','Space Cadet','Burgler','Commandant','Golden Knight','Honey Bee','Necromancer','Paladin','Refined Suit','Sexy Jacket','Stoner Hoodie','The Duke','Rave Hoodie','Scuba suit temp','Burger Suit','Scrubs','BH-Tshirt','BoigaRed','FlaredUp','MetalFan','Shiller','SuperFlare','Uni-Fyed','BabaYaga+MXP','FurCoat+MXP','Handyman+MXP','Infernus+MXP','Lightyear+MXP','Mitsuri+MXP','PufferCoat+MXP','WeBall+MXP','Assassing+EXP','BioHazard+EXP','Box Robot+EXP','CyberSuit+EXP','DickGrayson+EXP','Elm Street+EXP','Funny Biz+EXP','High Mage+EXP','Kringle+EXP','Miles Morales+EXP','Punk Jacket+EXP','Recycled+EXP','Scorpion+EXP','Space Invader+EXP'],
+  TEXTURE: ['Blood','Acid','Ink','Dart Frog Blue','Dart Frog Red','Dart Frog Yellow','Magical','Puzzled','Rug Life Ink','Pulverized','FlaredInk','Angelic+MXP','Tagged+MXP','Aura+EXP','Mystic Ink+EXP','Octo Ink+EXP','Saga Ink-EXP','Yakuza+EXP']
+};
+// The 2026-04-30 drop — badge these so new stuff is easy to spot.
+const NEW_DROP = new Set(['IceMan','Primal','TheLizard','PanduBeru','Calico+MXP','Cheesed+MXP','Infernal+MXP','Prismatic+MXP','FoxFamous','Inferno','Kpop','Mullet','Party-Animal','Raven','Unplugged','Yagami','Afro+MXP','Cruela+MXP','Keanu+MXP','Medusa+MXP','Rural+MXP','Shinto+MXP','Sideshow+MXP','SnowBeanie+MXP','Thursday+MXP','Wendy+MXP','Eggcellent+EXP','Kakarot+EXP','Martian+EXP','Pirated+EXP','Spartan+EXP','Straw Hat+EXP','CandyGrill','Quacked','Mutant+MXP','BH-Tshirt','BoigaRed','FlaredUp','MetalFan','Shiller','SuperFlare','Uni-Fyed','BabaYaga+MXP','FurCoat+MXP','Handyman+MXP','Infernus+MXP','Lightyear+MXP','Mitsuri+MXP','PufferCoat+MXP','WeBall+MXP','Assassing+EXP','BioHazard+EXP','Box Robot+EXP','CyberSuit+EXP','DickGrayson+EXP','Elm Street+EXP','Funny Biz+EXP','High Mage+EXP','Kringle+EXP','Miles Morales+EXP','Punk Jacket+EXP','Recycled+EXP','Scorpion+EXP','Space Invader+EXP','FlaredInk','Angelic+MXP','Tagged+MXP','Aura+EXP','Mystic Ink+EXP','Octo Ink+EXP','Saga Ink-EXP','Yakuza+EXP']);
+const SCENE_COUNT = 88;
+
+function prettyPiece(v){ return String(v).replace(/\s*[+-](MXP|EXP)$/i, ''); }
+
+let currentFilter = "all";
+
+function makeCard(type, name, label, url) {
+  url = url || (type === "bg" ? baseBg + name + ".png" : baseArt + name + ".png");
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.type = type;
+  card.onclick = () => openPreview(url, label);
+  const isNew = NEW_DROP.has(name);
+  card.innerHTML = `
+    <img class="card-img${type === 'pieces' ? ' piece-img' : ''}" src="${url}" alt="${label}" loading="lazy"
+      onerror="this.style.display='none';this.parentElement.style.display='none'">
+    <div class="card-label">${label}${isNew ? ' <span class="count-tag">NEW</span>' : ''}</div>
+  `;
+  return card;
+}
+
+function render() {
+  const gridBg = document.getElementById("grid-bg");
+  const gridArt = document.getElementById("grid-art");
+  const gridScene = document.getElementById("grid-scene");
+  const secPieces = document.getElementById("sec-pieces");
+
+  gridBg.innerHTML = "";
+  gridArt.innerHTML = "";
+  gridScene.innerHTML = "";
+  secPieces.innerHTML = "";
+
+  backgrounds.forEach(name => gridBg.appendChild(makeCard("bg", name, name)));
+  artwork.forEach(item => gridArt.appendChild(makeCard("art", item.name, item.label)));
+  for (let i = 1; i <= SCENE_COUNT; i++)
+    gridScene.appendChild(makeCard("scene", "bg" + i, "Scene " + i, baseScene + "bg" + i + ".png"));
+
+  let pieceCount = 0;
+  Object.entries(PIECES).forEach(([cat, names]) => {
+    const head = document.createElement("div");
+    head.className = "section-header";
+    head.innerHTML = `<div class="section-title">${cat} (${names.length})</div><div class="section-line"></div>`;
+    secPieces.appendChild(head);
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    names.forEach(n => {
+      grid.appendChild(makeCard("pieces", n, prettyPiece(n), `${CDN}/${cat}/${encodeURIComponent(n)}.png`));
+      pieceCount++;
+    });
+    secPieces.appendChild(grid);
+  });
+
+  document.getElementById("count-all").textContent = backgrounds.length + artwork.length + SCENE_COUNT + pieceCount;
+  document.getElementById("count-bg").textContent = backgrounds.length;
+  document.getElementById("count-art").textContent = artwork.length;
+  document.getElementById("count-scene").textContent = SCENE_COUNT;
+  document.getElementById("count-pieces").textContent = pieceCount;
+
+  applyFilter();
+}
+
+function applyFilter() {
+  document.querySelectorAll(".card").forEach(card => {
+    const t = card.dataset.type;
+    if (currentFilter === "all") {
+      card.style.display = "";
+    } else {
+      card.style.display = (t === currentFilter) ? "" : "none";
+    }
+  });
+  
+  document.getElementById("sec-pieces").style.display =
+    (currentFilter === "all" || currentFilter === "pieces") ? "block" : "none";
+  document.getElementById("sec-bg").style.display =
+    (currentFilter === "all" || currentFilter === "bg") ? "block" : "none";
+  document.getElementById("sec-scene").style.display =
+    (currentFilter === "all" || currentFilter === "scene") ? "block" : "none";
+  document.getElementById("sec-art").style.display =
+    (currentFilter === "all" || currentFilter === "art") ? "block" : "none";
+}
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    currentFilter = tab.dataset.filter;
+    applyFilter();
+  });
+});
+
+function openPreview(url, name) {
+  document.getElementById("preview-img").src = url;
+  document.getElementById("preview-name").textContent = name;
+  document.getElementById("preview").classList.add("show");
+}
+
+function closePreview() {
+  document.getElementById("preview").classList.remove("show");
+}
+
+document.getElementById("preview").addEventListener("click", e => {
+  if (e.target === document.getElementById("preview")) closePreview();
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closePreview();
+});
+
+render();
+</script>
+</body>
+</html>
