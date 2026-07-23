@@ -11,6 +11,14 @@
       "author": "bhaleyart"
     },
     {
+      "id": "byterover-memory",
+      "name": "ByteRover Long-Term Memory",
+      "version": "1.0.0",
+      "description": "Persistent long-term memory via ByteRover context engine. Curates conversation knowledge every turn into a human-readable markdown knowledge base.",
+      "type": "openclaw-extension",
+      "author": "OpenVoiceUI"
+    },
+    {
       "id": "hermes-agent",
       "name": "Hermes Agent",
       "version": "1.0.0",
